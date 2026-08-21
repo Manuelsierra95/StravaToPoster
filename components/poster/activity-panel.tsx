@@ -115,7 +115,7 @@ function Header({ activity, slot }: { activity: ScrapedActivity; slot: number })
       </p>
       <h2
         ref={headingRef}
-        className="text-xl font-bold leading-tight"
+        className="break-words text-xl font-bold leading-tight"
         style={{
           fontFamily: headingFont,
           minHeight: maxTitleHeight || undefined,
