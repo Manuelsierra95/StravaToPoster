@@ -1,0 +1,483 @@
+"use client";
+
+// TODO: persist poster config (orientation, fonts, bg/text colors, metric
+// order/visibility, route color, map style, pitch/bearing) to localStorage so
+// changes survive page reloads. Until then, all edits are in-memory only and
+// reset whenever the provider remounts.
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+
+import {
+  METRICS,
+  type ActivitySummary,
+  type MetricId,
+  type ScrapedActivity,
+} from "@/lib/strava/types";
+import { pickReadableTextColor } from "@/lib/poster-color";
+
+export const STRAVA_DISCONNECTED_EVENT = "strava:disconnected";
+
+const CATALOG_PAGE_SIZE = 10;
+
+type CatalogState = "idle" | "loading" | "loadingMore" | "error";
+
+type AuthState = {
+  checked: boolean;
+  connected: boolean;
+};
+
+export type MapStyle = "default" | "openstreetmap" | "openstreetmap3d" | "satellite";
+export type Orientation = "portrait" | "landscape";
+export type ActivityCount = 1 | 2 | 3;
+
+export type FontId =
+  | "inter"
+  | "jetbrains"
+  | "space-grotesk"
+  | "dm-sans"
+  | "playfair"
+  | "bebas";
+
+export type FontOption = {
+  id: FontId;
+  label: string;
+  cssVar: string;
+};
+
+export const FONT_OPTIONS: readonly FontOption[] = [
+  { id: "inter", label: "Inter", cssVar: "var(--font-sans)" },
+  { id: "jetbrains", label: "JetBrains Mono", cssVar: "var(--font-heading)" },
+  { id: "space-grotesk", label: "Space Grotesk", cssVar: "var(--font-space-grotesk)" },
+  { id: "dm-sans", label: "DM Sans", cssVar: "var(--font-dm-sans)" },
+  { id: "playfair", label: "Playfair Display", cssVar: "var(--font-playfair)" },
+  { id: "bebas", label: "Bebas Neue", cssVar: "var(--font-bebas)" },
+] as const;
+
+export const FONT_BY_ID: Record<FontId, FontOption> = FONT_OPTIONS.reduce(
+  (acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  },
+  {} as Record<FontId, FontOption>,
+);
+
+export const MAX_SLOTS = 3;
+
+export type SlotConfig = {
+  routeColor: string;
+  elevationChartColor: string;
+  mapStyle: MapStyle;
+  pitch: number;
+  bearing: number;
+  zoom: number;
+  showLabels: boolean;
+  metricOrder: MetricId[];
+  hiddenMetrics: MetricId[];
+};
+
+export type PosterConfig = {
+  orientation: Orientation;
+  activityCount: ActivityCount;
+  backgroundColor: string;
+  textColor: string;
+  textColorAuto: boolean;
+  headingFont: FontId;
+  bodyFont: FontId;
+};
+
+export type PosterState = {
+  activities: (ScrapedActivity | null)[];
+  slotConfigs: SlotConfig[];
+  loadingBySlot: Record<number, boolean>;
+  errorsBySlot: Record<number, string | null>;
+  config: PosterConfig;
+  auth: AuthState;
+  catalog: ActivitySummary[];
+  catalogPage: number;
+  catalogHasMore: boolean;
+  catalogState: CatalogState;
+  catalogError: string | null;
+  loadActivity: (input: string, slot: number) => Promise<void>;
+  setActivityCount: (count: ActivityCount) => void;
+  setConfig: (patch: Partial<PosterConfig>) => void;
+  setSlotConfig: (slot: number, patch: Partial<SlotConfig>) => void;
+  setMetricVisible: (slot: number, id: MetricId, visible: boolean) => void;
+  reorderMetrics: (slot: number, fromIndex: number, toIndex: number) => void;
+  setBackgroundColor: (color: string) => void;
+  setTextColor: (color: string) => void;
+  resetTextColor: () => void;
+  fetchCatalog: (page: number, mode: "initial" | "more") => Promise<void>;
+  resetCatalog: () => void;
+  resetAuth: () => void;
+  reset: () => void;
+};
+
+const DEFAULT_BACKGROUND = "#ffffff";
+const DEFAULT_TEXT = pickReadableTextColor(DEFAULT_BACKGROUND);
+
+function createDefaultSlotConfig(): SlotConfig {
+  return {
+    routeColor: "#fc4c02",
+    elevationChartColor: "#fc4c02",
+    mapStyle: "default",
+    pitch: 0,
+    bearing: 0,
+    zoom: 0,
+    showLabels: true,
+    metricOrder: METRICS.map((m) => m.id),
+    hiddenMetrics: [],
+  };
+}
+
+const DEFAULT_CONFIG: PosterConfig = {
+  orientation: "portrait",
+  activityCount: 1,
+  backgroundColor: DEFAULT_BACKGROUND,
+  textColor: DEFAULT_TEXT,
+  textColorAuto: true,
+  headingFont: "jetbrains",
+  bodyFont: "inter",
+};
+
+function emptyLoadingRecord(): Record<number, boolean> {
+  return { 0: false, 1: false, 2: false };
+}
+
+function emptyErrorsRecord(): Record<number, string | null> {
+  return { 0: null, 1: null, 2: null };
+}
+
+const PosterContext = createContext<PosterState | null>(null);
+
+export function PosterProvider({ children }: { children: ReactNode }) {
+  const [activities, setActivities] = useState<(ScrapedActivity | null)[]>(
+    () => [null, null, null],
+  );
+  const [slotConfigs, setSlotConfigs] = useState<SlotConfig[]>(() =>
+    Array.from({ length: MAX_SLOTS }, createDefaultSlotConfig),
+  );
+  const [loadingBySlot, setLoadingBySlot] = useState<Record<number, boolean>>(
+    emptyLoadingRecord,
+  );
+  const [errorsBySlot, setErrorsBySlot] = useState<Record<number, string | null>>(
+    emptyErrorsRecord,
+  );
+  const [config, setConfigState] = useState<PosterConfig>(DEFAULT_CONFIG);
+  const [auth, setAuth] = useState<AuthState>({
+    checked: false,
+    connected: false,
+  });
+  const [catalog, setCatalog] = useState<ActivitySummary[]>([]);
+  const [catalogPage, setCatalogPage] = useState(0);
+  const [catalogHasMore, setCatalogHasMore] = useState(false);
+  const [catalogState, setCatalogState] = useState<CatalogState>("idle");
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const catalogInitialFetchStarted = useRef(false);
+
+  const setConfig = useCallback((patch: Partial<PosterConfig>) => {
+    setConfigState((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const setSlotConfig = useCallback(
+    (slot: number, patch: Partial<SlotConfig>) => {
+      if (slot < 0 || slot >= MAX_SLOTS) return;
+      setSlotConfigs((prev) => {
+        const next = [...prev];
+        next[slot] = { ...next[slot], ...patch };
+        return next;
+      });
+    },
+    [],
+  );
+
+  const setActivityCount = useCallback((count: ActivityCount) => {
+    setConfigState((prev) => ({ ...prev, activityCount: count }));
+  }, []);
+
+  const setMetricVisible = useCallback(
+    (slot: number, id: MetricId, visible: boolean) => {
+      if (slot < 0 || slot >= MAX_SLOTS) return;
+      setSlotConfigs((prev) => {
+        const next = [...prev];
+        const cfg = next[slot];
+        const isHidden = cfg.hiddenMetrics.includes(id);
+        if (visible && isHidden) {
+          next[slot] = {
+            ...cfg,
+            hiddenMetrics: cfg.hiddenMetrics.filter((m) => m !== id),
+          };
+          return next;
+        }
+        if (!visible && !isHidden) {
+          next[slot] = {
+            ...cfg,
+            hiddenMetrics: [...cfg.hiddenMetrics, id],
+          };
+          return next;
+        }
+        return prev;
+      });
+    },
+    [],
+  );
+
+  const reorderMetrics = useCallback(
+    (slot: number, fromIndex: number, toIndex: number) => {
+      if (slot < 0 || slot >= MAX_SLOTS) return;
+      setSlotConfigs((prev) => {
+        const cfg = prev[slot];
+        if (
+          fromIndex === toIndex ||
+          fromIndex < 0 ||
+          toIndex < 0 ||
+          fromIndex >= cfg.metricOrder.length ||
+          toIndex >= cfg.metricOrder.length
+        ) {
+          return prev;
+        }
+        const next = [...cfg.metricOrder];
+        const [moved] = next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, moved);
+        const nextSlotConfigs = [...prev];
+        nextSlotConfigs[slot] = { ...cfg, metricOrder: next };
+        return nextSlotConfigs;
+      });
+    },
+    [],
+  );
+
+  const setBackgroundColor = useCallback((color: string) => {
+    setConfigState((prev) => ({
+      ...prev,
+      backgroundColor: color,
+      textColor: prev.textColorAuto
+        ? pickReadableTextColor(color)
+        : prev.textColor,
+    }));
+  }, []);
+
+  const setTextColor = useCallback((color: string) => {
+    setConfigState((prev) => ({
+      ...prev,
+      textColor: color,
+      textColorAuto: false,
+    }));
+  }, []);
+
+  const resetTextColor = useCallback(() => {
+    setConfigState((prev) => ({
+      ...prev,
+      textColor: pickReadableTextColor(prev.backgroundColor),
+      textColorAuto: true,
+    }));
+  }, []);
+
+  const reset = useCallback(() => {
+    setActivities([null, null, null]);
+    setSlotConfigs(Array.from({ length: MAX_SLOTS }, createDefaultSlotConfig));
+    setLoadingBySlot(emptyLoadingRecord());
+    setErrorsBySlot(emptyErrorsRecord());
+    setConfigState(DEFAULT_CONFIG);
+  }, []);
+
+  const loadActivity = useCallback(async (input: string, slot: number) => {
+    if (slot < 0 || slot >= MAX_SLOTS) return;
+    setLoadingBySlot((prev) => ({ ...prev, [slot]: true }));
+    setErrorsBySlot((prev) => ({ ...prev, [slot]: null }));
+    try {
+      const res = await fetch(
+        `/api/strava/${encodeURIComponent(input.trim())}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? `Error ${res.status}`);
+      }
+      const data = (await res.json()) as { activity: ScrapedActivity };
+      setActivities((prev) => {
+        const next = [...prev];
+        next[slot] = data.activity;
+        return next;
+      });
+    } catch (err) {
+      setActivities((prev) => {
+        const next = [...prev];
+        next[slot] = null;
+        return next;
+      });
+      setErrorsBySlot((prev) => ({
+        ...prev,
+        [slot]: (err as Error).message ?? "Error desconocido",
+      }));
+    } finally {
+      setLoadingBySlot((prev) => ({ ...prev, [slot]: false }));
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch("/api/strava/auth/status", {
+            cache: "no-store",
+          });
+          const data = (await res.json()) as { connected: boolean };
+          if (!cancelled) {
+            setAuth({ checked: true, connected: Boolean(data.connected) });
+          }
+        } catch {
+          if (!cancelled) {
+            setAuth({ checked: true, connected: false });
+          }
+        }
+      })();
+    }, 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, []);
+
+  const resetCatalog = useCallback(() => {
+    setCatalog([]);
+    setCatalogPage(0);
+    setCatalogHasMore(false);
+    setCatalogState("idle");
+    setCatalogError(null);
+    catalogInitialFetchStarted.current = false;
+  }, []);
+
+  const resetAuth = useCallback(() => {
+    setAuth({ checked: true, connected: false });
+    resetCatalog();
+  }, [resetCatalog]);
+
+  useEffect(() => {
+    const handler = () => resetAuth();
+    window.addEventListener(STRAVA_DISCONNECTED_EVENT, handler);
+    return () => window.removeEventListener(STRAVA_DISCONNECTED_EVENT, handler);
+  }, [resetAuth]);
+
+  const fetchCatalog = useCallback(
+    async (targetPage: number, mode: "initial" | "more") => {
+      setCatalogState((prev) => {
+        if (mode === "initial" && prev === "loading") return prev;
+        if (mode === "initial") return "loading";
+        if (prev === "loading") return "loadingMore";
+        return prev;
+      });
+      setCatalogError(null);
+      try {
+        const res = await fetch(
+          `/api/strava/activities?page=${targetPage}&perPage=${CATALOG_PAGE_SIZE}`,
+          { cache: "no-store" },
+        );
+        const data = (await res.json()) as {
+          activities?: ActivitySummary[];
+          hasMore?: boolean;
+          error?: string;
+        };
+        if (!res.ok) {
+          throw new Error(data.error ?? `Error ${res.status}`);
+        }
+        const incoming = data.activities ?? [];
+        setCatalog((prev) =>
+          mode === "initial" ? incoming : [...prev, ...incoming],
+        );
+        setCatalogHasMore(Boolean(data.hasMore));
+        setCatalogPage(targetPage);
+        setCatalogState("idle");
+      } catch (err) {
+        setCatalogError((err as Error).message ?? "Error desconocido");
+        setCatalogState("error");
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!auth.connected) {
+      catalogInitialFetchStarted.current = false;
+      return;
+    }
+    if (catalogInitialFetchStarted.current) return;
+    if (catalog.length > 0 || catalogState === "loading") return;
+    catalogInitialFetchStarted.current = true;
+    void fetchCatalog(1, "initial");
+  }, [auth.connected, catalog.length, catalogState, fetchCatalog]);
+
+  const value = useMemo<PosterState>(
+    () => ({
+      activities,
+      slotConfigs,
+      loadingBySlot,
+      errorsBySlot,
+      config,
+      auth,
+      catalog,
+      catalogPage,
+      catalogHasMore,
+      catalogState,
+      catalogError,
+      loadActivity,
+      setActivityCount,
+      setConfig,
+      setSlotConfig,
+      setMetricVisible,
+      reorderMetrics,
+      setBackgroundColor,
+      setTextColor,
+      resetTextColor,
+      fetchCatalog,
+      resetCatalog,
+      resetAuth,
+      reset,
+    }),
+    [
+      activities,
+      slotConfigs,
+      loadingBySlot,
+      errorsBySlot,
+      config,
+      auth,
+      catalog,
+      catalogPage,
+      catalogHasMore,
+      catalogState,
+      catalogError,
+      loadActivity,
+      setActivityCount,
+      setConfig,
+      setSlotConfig,
+      setMetricVisible,
+      reorderMetrics,
+      setBackgroundColor,
+      setTextColor,
+      resetTextColor,
+      fetchCatalog,
+      resetCatalog,
+      resetAuth,
+      reset,
+    ],
+  );
+
+  return <PosterContext.Provider value={value}>{children}</PosterContext.Provider>;
+}
+
+export function usePoster(): PosterState {
+  const ctx = useContext(PosterContext);
+  if (!ctx) {
+    throw new Error("usePoster must be used within a PosterProvider");
+  }
+  return ctx;
+}
