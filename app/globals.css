@@ -129,4 +129,27 @@
   html {
     @apply font-sans;
     }
+  .maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+    }
+  .maplibregl-popup-tip {
+    @apply hidden!;
+    }
+}
+
+@layer base {
+  [data-poster-scope] {
+    --background: var(--poster-bg);
+    --foreground: var(--poster-fg);
+    --card: var(--poster-bg);
+    --card-foreground: var(--poster-fg);
+    --popover: var(--poster-bg);
+    --popover-foreground: var(--poster-fg);
+    --muted: var(--poster-muted-bg);
+    --muted-foreground: var(--poster-fg-muted);
+    --border: var(--poster-border);
+    --ring: var(--poster-fg-muted);
+    color: var(--poster-fg);
+    background-color: var(--poster-bg);
+  }
 }
