@@ -15,7 +15,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Button } from "@/components/ui/button";
 import { usePoster } from "@/components/poster-provider";
 import { formatActivityType } from "@/lib/format";
 import type { ScrapedActivity, StravaActivityType } from "@/lib/strava/types";
@@ -66,7 +65,13 @@ export function ActivitySlot({ slot }: { slot: number }) {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-2 py-1.5">
+      <CollapsibleTrigger
+        nativeButton={false}
+        render={
+          <div className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-left" />
+        }
+        aria-label={open ? "Cerrar actividad" : "Abrir actividad"}
+      >
         <span className="flex min-w-0 items-center gap-2 text-xs">
           <Icon className={cn("size-3.5 shrink-0")} aria-hidden />
           <span className="truncate font-medium">
@@ -75,18 +80,14 @@ export function ActivitySlot({ slot }: { slot: number }) {
               : "Sin actividad"}
           </span>
         </span>
-        <CollapsibleTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={open ? "Cerrar" : "Abrir"}
-            >
-              <ChevronsUpDown className="size-3.5" />
-            </Button>
-          }
+        <ChevronsUpDown
+          className={cn(
+            "size-3.5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+          aria-hidden
         />
-      </div>
+      </CollapsibleTrigger>
       <CollapsibleContent className="pt-1.5">
         <ActivityList
           slot={slot}
