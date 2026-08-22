@@ -1,9 +1,9 @@
 "use client";
 
-// TODO: persist poster config (orientation, fonts, bg/text colors, metric
-// order/visibility, route color, map style, pitch/bearing) to localStorage so
-// changes survive page reloads. Until then, all edits are in-memory only and
-// reset whenever the provider remounts.
+// TODO: persist poster config (theme, text/route color overrides, fonts,
+// metric order/visibility, pitch/bearing) to localStorage so changes survive
+// page reloads. Until then, all edits are in-memory only and reset whenever
+// the provider remounts.
 
 import {
   createContext,
@@ -26,7 +26,7 @@ import {
   type ScrapedActivity,
   type StravaClub,
 } from "@/lib/strava/types";
-import { pickReadableTextColor } from "@/lib/poster-color";
+import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "@/lib/poster-themes";
 
 export const STRAVA_DISCONNECTED_EVENT = "strava:disconnected";
 
@@ -43,7 +43,6 @@ type AuthState = {
   athleteLastName: string | null;
 };
 
-export type MapStyle = "default" | "openstreetmap" | "openstreetmap3d" | "satellite";
 export type Orientation = "portrait" | "landscape";
 export type ActivityCount = 1 | 2 | 3;
 export type FrameId = "wood-light" | "black" | "white";
@@ -112,9 +111,9 @@ export const FONT_BY_ID: Record<FontId, FontOption> = FONT_OPTIONS.reduce(
 export const MAX_SLOTS = 3;
 
 export type SlotConfig = {
-  routeColor: string;
+  /** User-customized route color. Falls back to the active theme's `route.default` when null. */
+  routeColorOverride: string | null;
   elevationChartColor: string;
-  mapStyle: MapStyle;
   pitch: number;
   bearing: number;
   zoom: number;
@@ -130,9 +129,9 @@ export type SlotConfig = {
 export type PosterConfig = {
   orientation: Orientation;
   activityCount: ActivityCount;
-  backgroundColor: string;
-  textColor: string;
-  textColorAuto: boolean;
+  theme: ThemeId;
+  /** User-customized poster text color. Falls back to the active theme's `poster.text` when null. */
+  textColorOverride: string | null;
   headingFont: FontId;
   bodyFont: FontId;
   frame: FrameId;
@@ -164,9 +163,11 @@ export type PosterState = {
   setRiderFieldVisible: (slot: number, id: RiderFieldId, visible: boolean) => void;
   reorderRiderFields: (slot: number, fromIndex: number, toIndex: number) => void;
   fetchAthleteClubs: () => Promise<void>;
-  setBackgroundColor: (color: string) => void;
+  setTheme: (id: ThemeId) => void;
   setTextColor: (color: string) => void;
   resetTextColor: () => void;
+  setRouteColor: (slot: number, color: string) => void;
+  resetRouteColor: (slot: number) => void;
   fetchCatalog: (page: number, mode: "initial" | "more") => Promise<void>;
   resetCatalog: () => void;
   resetClubs: () => void;
@@ -174,14 +175,10 @@ export type PosterState = {
   reset: () => void;
 };
 
-const DEFAULT_BACKGROUND = "#ffffff";
-const DEFAULT_TEXT = pickReadableTextColor(DEFAULT_BACKGROUND);
-
 function createDefaultSlotConfig(): SlotConfig {
   return {
-    routeColor: "#fc4c02",
+    routeColorOverride: null,
     elevationChartColor: "#fc4c02",
-    mapStyle: "default",
     pitch: 0,
     bearing: 0,
     zoom: 0,
@@ -198,9 +195,8 @@ function createDefaultSlotConfig(): SlotConfig {
 const DEFAULT_CONFIG: PosterConfig = {
   orientation: "portrait",
   activityCount: 1,
-  backgroundColor: DEFAULT_BACKGROUND,
-  textColor: DEFAULT_TEXT,
-  textColorAuto: true,
+  theme: DEFAULT_THEME_ID,
+  textColorOverride: null,
   headingFont: "jetbrains",
   bodyFont: "inter",
   frame: "black",
@@ -426,30 +422,34 @@ export function PosterProvider({ children }: { children: ReactNode }) {
     [auth.athleteFirstName, auth.athleteLastName, athleteClubs],
   );
 
-  const setBackgroundColor = useCallback((color: string) => {
-    setConfigState((prev) => ({
-      ...prev,
-      backgroundColor: color,
-      textColor: prev.textColorAuto
-        ? pickReadableTextColor(color)
-        : prev.textColor,
-    }));
+  const setTheme = useCallback((id: ThemeId) => {
+    setConfigState((prev) => (prev.theme === id ? prev : { ...prev, theme: id }));
   }, []);
 
   const setTextColor = useCallback((color: string) => {
-    setConfigState((prev) => ({
-      ...prev,
-      textColor: color,
-      textColorAuto: false,
-    }));
+    setConfigState((prev) => ({ ...prev, textColorOverride: color }));
   }, []);
 
   const resetTextColor = useCallback(() => {
-    setConfigState((prev) => ({
-      ...prev,
-      textColor: pickReadableTextColor(prev.backgroundColor),
-      textColorAuto: true,
-    }));
+    setConfigState((prev) => ({ ...prev, textColorOverride: null }));
+  }, []);
+
+  const setRouteColor = useCallback((slot: number, color: string) => {
+    if (slot < 0 || slot >= MAX_SLOTS) return;
+    setSlotConfigs((prev) => {
+      const next = [...prev];
+      next[slot] = { ...next[slot], routeColorOverride: color };
+      return next;
+    });
+  }, []);
+
+  const resetRouteColor = useCallback((slot: number) => {
+    if (slot < 0 || slot >= MAX_SLOTS) return;
+    setSlotConfigs((prev) => {
+      const next = [...prev];
+      next[slot] = { ...next[slot], routeColorOverride: null };
+      return next;
+    });
   }, []);
 
   const reset = useCallback(() => {
@@ -694,9 +694,11 @@ export function PosterProvider({ children }: { children: ReactNode }) {
       setRiderFieldVisible,
       reorderRiderFields,
       fetchAthleteClubs,
-      setBackgroundColor,
+      setTheme,
       setTextColor,
       resetTextColor,
+      setRouteColor,
+      resetRouteColor,
       fetchCatalog,
       resetCatalog,
       resetClubs,
@@ -729,9 +731,11 @@ export function PosterProvider({ children }: { children: ReactNode }) {
       setRiderFieldVisible,
       reorderRiderFields,
       fetchAthleteClubs,
-      setBackgroundColor,
+      setTheme,
       setTextColor,
       resetTextColor,
+      setRouteColor,
+      resetRouteColor,
       fetchCatalog,
       resetCatalog,
       resetClubs,
@@ -749,4 +753,17 @@ export function usePoster(): PosterState {
     throw new Error("usePoster must be used within a PosterProvider");
   }
   return ctx;
+}
+
+/** Effective poster text color: override or active theme's default. */
+export function useEffectiveTextColor(): string {
+  const { config } = usePoster();
+  return config.textColorOverride ?? getTheme(config.theme).poster.text;
+}
+
+/** Effective route color for a slot: override or active theme's default. */
+export function useEffectiveRouteColor(slot: number): string {
+  const { slotConfigs, config } = usePoster();
+  const cfg = slotConfigs[slot];
+  return cfg.routeColorOverride ?? getTheme(config.theme).route.default;
 }

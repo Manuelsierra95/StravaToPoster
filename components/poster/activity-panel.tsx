@@ -73,7 +73,7 @@ export function ActivityPanel({
       </header>
 
       <div className="relative min-h-0 flex-1 overflow-hidden">
-        <RouteMap activity={activity} slotConfig={slotConfig} />
+        <RouteMap activity={activity} slot={slot} slotConfig={slotConfig} />
       </div>
 
       {hasElevation && activity.elevationPoints && (
@@ -156,7 +156,7 @@ function LandscapeActivityPanel({
         style={{ flexBasis: "60%", flexGrow: 0, flexShrink: 0 }}
       >
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden border-r">
-          <RouteMap activity={activity} slotConfig={slotConfig} />
+          <RouteMap activity={activity} slot={slot} slotConfig={slotConfig} />
         </div>
 
         {hasElevation && activity.elevationPoints && (

@@ -2,13 +2,21 @@
 
 import { Mountain } from "lucide-react";
 
-import { FRAME_OPTIONS, FONT_BY_ID, usePoster } from "@/components/poster-provider";
+import {
+  FRAME_OPTIONS,
+  FONT_BY_ID,
+  useEffectiveTextColor,
+  usePoster,
+} from "@/components/poster-provider";
+import { getTheme } from "@/lib/poster-themes";
 import { hexToRgba } from "@/lib/poster-color";
 import { cn } from "@/lib/utils";
 import { ActivityPanel, ActivityPanelEmpty } from "./activity-panel";
 
 export function Poster() {
   const { activities, slotConfigs, loadingBySlot, errorsBySlot, config } = usePoster();
+  const effectiveTextColor = useEffectiveTextColor();
+  const theme = getTheme(config.theme);
   const isLandscape = config.orientation === "landscape";
   const count = config.activityCount;
 
@@ -30,13 +38,13 @@ export function Poster() {
       : { backgroundColor: frame.outer };
 
   const posterStyle = {
-    backgroundColor: config.backgroundColor,
-    color: config.textColor,
-    "--poster-bg": config.backgroundColor,
-    "--poster-fg": config.textColor,
-    "--poster-fg-muted": hexToRgba(config.textColor, 0.55),
-    "--poster-border": hexToRgba(config.textColor, 0.18),
-    "--poster-muted-bg": hexToRgba(config.textColor, 0.04),
+    backgroundColor: theme.poster.background,
+    color: effectiveTextColor,
+    "--poster-bg": theme.poster.background,
+    "--poster-fg": effectiveTextColor,
+    "--poster-fg-muted": hexToRgba(effectiveTextColor, 0.55),
+    "--poster-border": hexToRgba(effectiveTextColor, 0.18),
+    "--poster-muted-bg": hexToRgba(effectiveTextColor, 0.04),
     "--poster-heading-font": FONT_BY_ID[config.headingFont].cssVar,
     "--poster-body-font": FONT_BY_ID[config.bodyFont].cssVar,
   } as React.CSSProperties;

@@ -39,15 +39,6 @@ export function relativeLuminance(hex: string): number {
   );
 }
 
-export function pickReadableTextColor(
-  background: string,
-  options: { light?: string; dark?: string } = {},
-): string {
-  const light = options.light ?? "#ffffff";
-  const dark = options.dark ?? "#000000";
-  return relativeLuminance(background) > 0.5 ? dark : light;
-}
-
 export function hexToRgba(hex: string, alpha: number): string {
   const rgb = expandHex(hex);
   if (!rgb) return hex;

@@ -1,43 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import type { StyleSpecification } from "maplibre-gl";
-import { Map, MapRoute, type MapRef } from "@/components/ui/map";
+import { Map, MapRoute, useMap, type MapRef } from "@/components/ui/map";
 
-import { type MapStyle, type SlotConfig } from "@/components/poster-provider";
+import {
+  useEffectiveRouteColor,
+  usePoster,
+  type SlotConfig,
+} from "@/components/poster-provider";
+import { DEFAULT_BASE_STYLE, getTheme, type ThemeId } from "@/lib/poster-themes";
+import { applyTheme, validateThemeLayers } from "./map-theme-applier";
 import type { ScrapedActivity } from "@/lib/strava/types";
 import { decodePolyline, getBounds, type LngLat } from "@/lib/strava-polyline";
-
-const STYLE_URLS: Partial<Record<MapStyle, string>> = {
-  openstreetmap: "https://tiles.openfreemap.org/styles/bright",
-  openstreetmap3d: "https://tiles.openfreemap.org/styles/liberty",
-};
-
-const SATELLITE_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    "esri-satellite": {
-      type: "raster",
-      tiles: [
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      ],
-      tileSize: 256,
-      attribution: "Tiles © Esri",
-    },
-  },
-  layers: [
-    {
-      id: "esri-satellite",
-      type: "raster",
-      source: "esri-satellite",
-    },
-  ],
-};
-
-const STYLE_BY_MODE: Partial<Record<MapStyle, StyleSpecification | string>> = {
-  ...STYLE_URLS,
-  satellite: SATELLITE_STYLE,
-};
 
 const FALLBACK_CENTER: LngLat = [-74.006, 40.7128];
 const FALLBACK_ZOOM = 12;
@@ -46,15 +20,39 @@ const MAX_FIT_ZOOM = 12;
 const MIN_ZOOM = 0;
 const MAX_ZOOM = 20;
 
+/**
+ * Re-paints every categorized layer with the active theme. Renders as a child
+ * of `<Map>` so it can use the `useMap()` context, which exposes a reliable
+ * `isLoaded` flag (true only after the Map's `load` AND `style.load` events
+ * have fired). Forces a repaint so paint property changes are flushed to the
+ * canvas immediately.
+ */
+function ThemeController({ theme }: { theme: ThemeId }) {
+  const { map, isLoaded } = useMap();
+
+  useEffect(() => {
+    if (!map || !isLoaded) return;
+    applyTheme(map, getTheme(theme));
+    validateThemeLayers(map);
+    map.triggerRepaint();
+  }, [map, isLoaded, theme]);
+
+  return null;
+}
+
 export function RouteMap({
   activity,
+  slot,
   slotConfig,
 }: {
   activity: ScrapedActivity;
+  slot: number;
   slotConfig: SlotConfig;
 }) {
   const mapRef = useRef<MapRef>(null);
   const baseZoomRef = useRef<number>(FALLBACK_ZOOM);
+  const { config } = usePoster();
+  const routeColor = useEffectiveRouteColor(slot);
 
   const coordinates = useMemo(
     () => (activity ? decodePolyline(activity.summaryPolyline) : []),
@@ -131,7 +129,8 @@ export function RouteMap({
     };
   }, [slotConfig.showLabels]);
 
-  const selectedStyle = STYLE_BY_MODE[slotConfig.mapStyle];
+  const baseStyle =
+    getTheme(config.theme).map.baseStyle ?? DEFAULT_BASE_STYLE;
 
   return (
     <Map
@@ -141,16 +140,13 @@ export function RouteMap({
       pitch={slotConfig.pitch}
       bearing={slotConfig.bearing}
       interactive={false}
-      styles={
-        selectedStyle
-          ? { light: selectedStyle, dark: selectedStyle }
-          : undefined
-      }
+      styles={{ light: baseStyle, dark: baseStyle }}
     >
+      <ThemeController theme={config.theme} />
       {coordinates.length >= 2 && (
         <MapRoute
           coordinates={coordinates}
-          color={slotConfig.routeColor}
+          color={routeColor}
           width={4}
           opacity={0.95}
         />
