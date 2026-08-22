@@ -17,6 +17,7 @@ import { MapLabelsControl } from "./map-labels-control";
 import { MetricToggles } from "./metric-toggles";
 import { FontPicker } from "./font-picker";
 import { PosterBackground } from "./poster-background";
+import { AthleteInfo } from "./athlete-info";
 
 function Section({
   title,
@@ -48,6 +49,7 @@ export function EditorPanel() {
   const [chartSlot, setChartSlot] = useActiveSlot();
   const [mapSlot, setMapSlot] = useActiveSlot();
   const [metricSlot, setMetricSlot] = useActiveSlot();
+  const [riderSlot, setRiderSlot] = useActiveSlot();
 
   return (
     <aside className="flex h-full flex-col gap-5 overflow-y-auto border-border border-t bg-background p-5 lg:border-t-0 lg:border-l">
@@ -66,6 +68,15 @@ export function EditorPanel() {
 
       <Section title="Actividades">
         <MultiActivityPicker />
+      </Section>
+
+      <Separator />
+
+      <Section title="Atleta">
+        <SlotSelector value={riderSlot} onChange={setRiderSlot} />
+        <DragAndDropProvider>
+          <AthleteInfo slot={riderSlot} />
+        </DragAndDropProvider>
       </Section>
 
       <Separator />
