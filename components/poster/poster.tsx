@@ -68,6 +68,7 @@ export function Poster() {
                   slot={slot}
                   slotConfig={slotConfig}
                   chartHeightMode={columnsOrRows >= 2 ? "compact" : "tall"}
+                  orientation={isLandscape ? "landscape" : "portrait"}
                 />
               </div>
             ))}
