@@ -12,12 +12,11 @@ import { PosterOrientation } from "./poster-orientation";
 import { PosterFrame } from "./poster-frame";
 import { RouteColorPicker } from "./route-color-picker";
 import { ElevationChartControl } from "./elevation-chart-control";
-import { MapStyleSelector } from "./map-style-selector";
+import { PosterThemeSelector } from "./poster-theme-selector";
 import { MapTiltControl } from "./map-tilt-control";
 import { MapLabelsControl } from "./map-labels-control";
 import { MetricToggles } from "./metric-toggles";
 import { FontPicker } from "./font-picker";
-import { PosterBackground } from "./poster-background";
 import { AthleteInfo } from "./athlete-info";
 
 function Section({
@@ -94,8 +93,8 @@ export function EditorPanel() {
 
       <Separator />
 
-      <Section title="Fondo">
-        <PosterBackground />
+      <Section title="Estilo">
+        <PosterThemeSelector />
       </Section>
 
       <Separator />
@@ -122,7 +121,6 @@ export function EditorPanel() {
 
       <Section title="Mapa">
         <SlotSelector value={mapSlot} onChange={setMapSlot} />
-        <MapStyleSelector slot={mapSlot} />
         <MapTiltControl slot={mapSlot} />
         <MapLabelsControl slot={mapSlot} />
       </Section>

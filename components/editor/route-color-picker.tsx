@@ -1,7 +1,13 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
+
 import { Label } from "@/components/ui/label";
-import { usePoster } from "@/components/poster-provider";
+import {
+  useEffectiveRouteColor,
+  usePoster,
+} from "@/components/poster-provider";
+import { getTheme } from "@/lib/poster-themes";
 import { cn } from "@/lib/utils";
 
 const PRESETS = [
@@ -10,31 +16,46 @@ const PRESETS = [
   { color: "#ef4444", label: "Rojo" },
   { color: "#10b981", label: "Verde" },
   { color: "#a855f7", label: "Violeta" },
-  { color: "#f59e0b", label: "Ambar" },
+  { color: "#f59e0b", label: "Ámbar" },
   { color: "#111827", label: "Negro" },
   { color: "#f4f4f5", label: "Blanco" },
 ];
 
 export function RouteColorPicker({ slot }: { slot: number }) {
-  const { slotConfigs, setSlotConfig } = usePoster();
-  const config = slotConfigs[slot];
+  const { slotConfigs, config, setRouteColor, resetRouteColor } = usePoster();
+  const effectiveColor = useEffectiveRouteColor(slot);
+  const override = slotConfigs[slot].routeColorOverride;
+  const themeDefault = getTheme(config.theme).route.default;
+  const isOverridden = override !== null && override !== themeDefault;
 
   return (
     <div className="flex flex-col gap-2">
-      <Label className="text-xs font-medium">Color del recorrido</Label>
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-medium">Color del recorrido</Label>
+        {isOverridden && (
+          <button
+            type="button"
+            onClick={() => resetRouteColor(slot)}
+            className="flex items-center gap-1 rounded-md border border-border bg-card px-2 py-0.5 text-[0.7rem] text-muted-foreground transition-colors hover:bg-muted"
+            title={`Restablecer al color del tema (${themeDefault.toUpperCase()})`}
+          >
+            <Sparkles className="size-3" />
+            Auto
+          </button>
+        )}
+      </div>
       <div className="grid grid-cols-8 gap-1.5">
         {PRESETS.map((preset) => {
-          const isSelected = config.routeColor === preset.color;
+          const isSelected =
+            effectiveColor.toLowerCase() === preset.color.toLowerCase();
           return (
             <button
               key={preset.color}
               type="button"
-              onClick={() => setSlotConfig(slot, { routeColor: preset.color })}
+              onClick={() => setRouteColor(slot, preset.color)}
               className={cn(
                 "relative aspect-square rounded-md border-2 transition-transform hover:scale-110",
-                isSelected
-                  ? "border-foreground"
-                  : "border-transparent",
+                isSelected ? "border-foreground" : "border-transparent",
               )}
               style={{ backgroundColor: preset.color }}
               aria-label={preset.label}
@@ -54,22 +75,28 @@ export function RouteColorPicker({ slot }: { slot: number }) {
         })}
       </div>
       <div className="flex items-center gap-2">
-        <Label htmlFor={`route-color-custom-${slot}`} className="text-[0.7rem] text-muted-foreground">
+        <Label
+          htmlFor={`route-color-custom-${slot}`}
+          className="text-[0.7rem] text-muted-foreground"
+        >
           Personalizado
         </Label>
         <input
           id={`route-color-custom-${slot}`}
           type="color"
-          value={config.routeColor}
-          onChange={(event) =>
-            setSlotConfig(slot, { routeColor: event.target.value })
-          }
+          value={effectiveColor}
+          onChange={(event) => setRouteColor(slot, event.target.value)}
           className="h-6 w-12 cursor-pointer rounded border bg-transparent"
         />
         <span className="font-mono text-[0.7rem] text-muted-foreground">
-          {config.routeColor.toUpperCase()}
+          {effectiveColor.toUpperCase()}
         </span>
       </div>
+      {!isOverridden && (
+        <p className="text-[0.65rem] text-muted-foreground">
+          Usando el color por defecto del tema ({themeDefault.toUpperCase()}).
+        </p>
+      )}
     </div>
   );
 }
