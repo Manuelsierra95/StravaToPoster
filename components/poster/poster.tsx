@@ -2,7 +2,7 @@
 
 import { Mountain } from "lucide-react";
 
-import { usePoster, FONT_BY_ID } from "@/components/poster-provider";
+import { FRAME_OPTIONS, FONT_BY_ID, usePoster } from "@/components/poster-provider";
 import { hexToRgba } from "@/lib/poster-color";
 import { cn } from "@/lib/utils";
 import { ActivityPanel, ActivityPanelEmpty } from "./activity-panel";
@@ -23,6 +23,12 @@ export function Poster() {
   const anyLoading = Object.values(loadingBySlot).some(Boolean);
   const firstError = Object.values(errorsBySlot).find((e) => e) ?? null;
 
+  const frame = FRAME_OPTIONS.find((option) => option.id === config.frame) ?? FRAME_OPTIONS[0];
+  const frameOuterStyle =
+    frame.id === "wood-light"
+      ? { background: frame.outer }
+      : { backgroundColor: frame.outer };
+
   const posterStyle = {
     backgroundColor: config.backgroundColor,
     color: config.textColor,
@@ -41,51 +47,60 @@ export function Poster() {
   return (
     <div className="flex h-full w-full items-center justify-center overflow-auto bg-muted/30 p-4 lg:p-8">
       <div
-        data-poster-scope
-        style={posterStyle}
-        className={cn(
-          "relative flex w-full overflow-hidden rounded-2xl border shadow-2xl transition-all duration-300",
-          isLandscape
-            ? "aspect-[4/3] max-h-[min(95vh,1100px)] max-w-[min(98vw,1500px)] min-w-[min(75vw,640px)] flex-col"
-            : "aspect-[3/4] max-h-[min(98vh,1300px)] max-w-[min(98vw,900px)] min-w-[min(70vw,360px)] flex-row",
-        )}
+        data-poster-frame
+        className="relative p-7 shadow-2xl transition-all duration-300"
+        style={{
+          ...frameOuterStyle,
+          boxShadow: `0 30px 60px -15px rgba(0,0,0,0.5), inset 0 0 0 1px ${frame.edge}`,
+        }}
       >
-        {visibleCount === 0 ? (
-          <EmptyState loading={anyLoading} error={firstError} />
-        ) : (
-          <div
-            className="flex h-full w-full min-h-0 min-w-0"
-            style={{ flexDirection: isLandscape ? "column" : "row" }}
-          >
-            {filled.map(({ activity, slot, slotConfig }) => (
-              <div
-                key={activity.id}
-                className="flex min-w-0 min-h-0 overflow-hidden"
-                style={{ flex: "1 1 0", flexBasis: 0 }}
-              >
-                <ActivityPanel
-                  activity={activity}
-                  slot={slot}
-                  slotConfig={slotConfig}
-                  chartHeightMode={columnsOrRows >= 2 ? "compact" : "tall"}
-                  orientation={isLandscape ? "landscape" : "portrait"}
-                />
-              </div>
-            ))}
-            {Array.from({ length: count - visibleCount }).map((_, idx) => (
-              <div
-                key={`empty-${idx}`}
-                className={cn(
-                  "flex min-w-0 min-h-0 overflow-hidden border-dashed border-[var(--poster-border)]",
-                  isLandscape ? "border-t" : "border-l",
-                )}
-                style={{ flex: "1 1 0", flexBasis: 0 }}
-              >
-                <ActivityPanelEmpty orientation={isLandscape ? "landscape" : "portrait"} />
-              </div>
-            ))}
-          </div>
-        )}
+        <div
+          data-poster-scope
+          style={posterStyle}
+          className={cn(
+            "relative flex w-full overflow-hidden border transition-all duration-300",
+            isLandscape
+              ? "aspect-[4/3] max-h-[min(95vh,1100px)] max-w-[min(98vw,1500px)] min-w-[min(75vw,640px)] flex-col"
+              : "aspect-[3/4] max-h-[min(98vh,1300px)] max-w-[min(98vw,900px)] min-w-[min(70vw,360px)] flex-row",
+          )}
+        >
+          {visibleCount === 0 ? (
+            <EmptyState loading={anyLoading} error={firstError} />
+          ) : (
+            <div
+              className="flex h-full w-full min-h-0 min-w-0"
+              style={{ flexDirection: isLandscape ? "column" : "row" }}
+            >
+              {filled.map(({ activity, slot, slotConfig }) => (
+                <div
+                  key={activity.id}
+                  className="flex min-w-0 min-h-0 overflow-hidden"
+                  style={{ flex: "1 1 0", flexBasis: 0 }}
+                >
+                  <ActivityPanel
+                    activity={activity}
+                    slot={slot}
+                    slotConfig={slotConfig}
+                    chartHeightMode={columnsOrRows >= 2 ? "compact" : "tall"}
+                    orientation={isLandscape ? "landscape" : "portrait"}
+                  />
+                </div>
+              ))}
+              {Array.from({ length: count - visibleCount }).map((_, idx) => (
+                <div
+                  key={`empty-${idx}`}
+                  className={cn(
+                    "flex min-w-0 min-h-0 overflow-hidden border-dashed border-[var(--poster-border)]",
+                    isLandscape ? "border-t" : "border-l",
+                  )}
+                  style={{ flex: "1 1 0", flexBasis: 0 }}
+                >
+                  <ActivityPanelEmpty orientation={isLandscape ? "landscape" : "portrait"} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

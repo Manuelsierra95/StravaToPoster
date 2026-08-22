@@ -46,6 +46,37 @@ type AuthState = {
 export type MapStyle = "default" | "openstreetmap" | "openstreetmap3d" | "satellite";
 export type Orientation = "portrait" | "landscape";
 export type ActivityCount = 1 | 2 | 3;
+export type FrameId = "wood-light" | "black" | "white";
+
+export const FRAME_OPTIONS: readonly {
+  id: FrameId;
+  label: string;
+  description: string;
+  outer: string;
+  edge: string;
+}[] = [
+  {
+    id: "black",
+    label: "Negro",
+    description: "Mate clásico",
+    outer: "#0a0a0a",
+    edge: "rgba(255, 255, 255, 0.08)",
+  },
+  {
+    id: "white",
+    label: "Blanco",
+    description: "Limpio y minimalista",
+    outer: "#e8e8e8",
+    edge: "rgba(0, 0, 0, 0.12)",
+  },
+  {
+    id: "wood-light",
+    label: "Madera clara",
+    description: "Roble natural",
+    outer: "linear-gradient(135deg, #d4a574 0%, #c8965e 35%, #b88752 70%, #d4a574 100%)",
+    edge: "rgba(0, 0, 0, 0.22)",
+  },
+] as const;
 
 export type FontId =
   | "inter"
@@ -104,6 +135,7 @@ export type PosterConfig = {
   textColorAuto: boolean;
   headingFont: FontId;
   bodyFont: FontId;
+  frame: FrameId;
 };
 
 export type PosterState = {
@@ -171,6 +203,7 @@ const DEFAULT_CONFIG: PosterConfig = {
   textColorAuto: true,
   headingFont: "jetbrains",
   bodyFont: "inter",
+  frame: "black",
 };
 
 function emptyLoadingRecord(): Record<number, boolean> {

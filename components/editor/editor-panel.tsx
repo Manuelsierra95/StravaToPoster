@@ -9,6 +9,7 @@ import { StravaAuth } from "./strava-auth";
 import { MultiActivityPicker } from "./multi-activity-picker";
 import { SlotSelector } from "./slot-selector";
 import { PosterOrientation } from "./poster-orientation";
+import { PosterFrame } from "./poster-frame";
 import { RouteColorPicker } from "./route-color-picker";
 import { ElevationChartControl } from "./elevation-chart-control";
 import { MapStyleSelector } from "./map-style-selector";
@@ -83,6 +84,12 @@ export function EditorPanel() {
 
       <Section title="Formato">
         <PosterOrientation />
+      </Section>
+
+      <Separator />
+
+      <Section title="Marco">
+        <PosterFrame />
       </Section>
 
       <Separator />
