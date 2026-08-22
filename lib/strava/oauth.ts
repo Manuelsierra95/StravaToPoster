@@ -1,6 +1,12 @@
 import { cookies } from "next/headers";
+import { cacheLife, cacheTag } from "next/cache";
 
-import type { ActivitySummary, ScrapedActivity, StravaActivityType } from "./types";
+import type {
+  ActivitySummary,
+  ScrapedActivity,
+  StravaActivityType,
+  StravaClub,
+} from "./types";
 
 const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
 const STRAVA_API_BASE = "https://www.strava.com/api/v3";
@@ -457,6 +463,45 @@ export async function getCurrentAthleteSummary(): Promise<{
     firstName: tokens.athleteFirstName,
     lastName: tokens.athleteLastName,
   };
+}
+
+type StravaClubRaw = {
+  id: number;
+  name: string;
+  profile?: string;
+  sport_type?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  member_count?: number;
+};
+
+async function fetchAthleteClubsUncached(
+  accessToken: string,
+): Promise<StravaClub[]> {
+  const response = await fetch(
+    `${STRAVA_API_BASE}/athlete/clubs?per_page=100`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const data = (await response.json()) as StravaClubRaw[];
+  return data.map((club) => ({ id: club.id, name: club.name }));
+}
+
+export async function getCachedAthleteClubs(
+  accessToken: string,
+): Promise<StravaClub[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("strava:athlete-clubs");
+  return fetchAthleteClubsUncached(accessToken);
 }
 
 export async function buildAuthorizeUrl(state: string): Promise<string> {
