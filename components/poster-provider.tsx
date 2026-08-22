@@ -18,9 +18,13 @@ import {
 
 import {
   METRICS,
+  RIDER_FIELDS,
   type ActivitySummary,
   type MetricId,
+  type RiderFieldId,
+  type RiderInfo,
   type ScrapedActivity,
+  type StravaClub,
 } from "@/lib/strava/types";
 import { pickReadableTextColor } from "@/lib/poster-color";
 
@@ -30,9 +34,13 @@ const CATALOG_PAGE_SIZE = 10;
 
 type CatalogState = "idle" | "loading" | "loadingMore" | "error";
 
+type ClubsState = "idle" | "loading" | "loaded" | "error";
+
 type AuthState = {
   checked: boolean;
   connected: boolean;
+  athleteFirstName: string | null;
+  athleteLastName: string | null;
 };
 
 export type MapStyle = "default" | "openstreetmap" | "openstreetmap3d" | "satellite";
@@ -82,6 +90,10 @@ export type SlotConfig = {
   showLabels: boolean;
   metricOrder: MetricId[];
   hiddenMetrics: MetricId[];
+  riderSectionEnabled: boolean;
+  riderFieldOrder: RiderFieldId[];
+  hiddenRiderFields: RiderFieldId[];
+  rider: RiderInfo;
 };
 
 export type PosterConfig = {
@@ -106,17 +118,26 @@ export type PosterState = {
   catalogHasMore: boolean;
   catalogState: CatalogState;
   catalogError: string | null;
+  athleteClubs: StravaClub[];
+  athleteClubsState: ClubsState;
+  athleteClubsError: string | null;
   loadActivity: (input: string, slot: number) => Promise<void>;
   setActivityCount: (count: ActivityCount) => void;
   setConfig: (patch: Partial<PosterConfig>) => void;
   setSlotConfig: (slot: number, patch: Partial<SlotConfig>) => void;
   setMetricVisible: (slot: number, id: MetricId, visible: boolean) => void;
   reorderMetrics: (slot: number, fromIndex: number, toIndex: number) => void;
+  setRiderSectionEnabled: (slot: number, enabled: boolean) => void;
+  setRiderField: (slot: number, id: RiderFieldId, value: string) => void;
+  setRiderFieldVisible: (slot: number, id: RiderFieldId, visible: boolean) => void;
+  reorderRiderFields: (slot: number, fromIndex: number, toIndex: number) => void;
+  fetchAthleteClubs: () => Promise<void>;
   setBackgroundColor: (color: string) => void;
   setTextColor: (color: string) => void;
   resetTextColor: () => void;
   fetchCatalog: (page: number, mode: "initial" | "more") => Promise<void>;
   resetCatalog: () => void;
+  resetClubs: () => void;
   resetAuth: () => void;
   reset: () => void;
 };
@@ -135,6 +156,10 @@ function createDefaultSlotConfig(): SlotConfig {
     showLabels: true,
     metricOrder: METRICS.map((m) => m.id),
     hiddenMetrics: [],
+    riderSectionEnabled: false,
+    riderFieldOrder: RIDER_FIELDS.map((f) => f.id),
+    hiddenRiderFields: [],
+    rider: { name: "", club: "", bib: "" },
   };
 }
 
@@ -175,13 +200,22 @@ export function PosterProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>({
     checked: false,
     connected: false,
+    athleteFirstName: null,
+    athleteLastName: null,
   });
   const [catalog, setCatalog] = useState<ActivitySummary[]>([]);
   const [catalogPage, setCatalogPage] = useState(0);
   const [catalogHasMore, setCatalogHasMore] = useState(false);
   const [catalogState, setCatalogState] = useState<CatalogState>("idle");
   const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [athleteClubs, setAthleteClubs] = useState<StravaClub[]>([]);
+  const [athleteClubsState, setAthleteClubsState] =
+    useState<ClubsState>("idle");
+  const [athleteClubsError, setAthleteClubsError] = useState<string | null>(
+    null,
+  );
   const catalogInitialFetchStarted = useRef(false);
+  const clubsInitialFetchStarted = useRef(false);
 
   const setConfig = useCallback((patch: Partial<PosterConfig>) => {
     setConfigState((prev) => ({ ...prev, ...patch }));
@@ -255,6 +289,110 @@ export function PosterProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const setRiderField = useCallback(
+    (slot: number, id: RiderFieldId, value: string) => {
+      if (slot < 0 || slot >= MAX_SLOTS) return;
+      setSlotConfigs((prev) => {
+        const next = [...prev];
+        const cfg = next[slot];
+        next[slot] = {
+          ...cfg,
+          rider: { ...cfg.rider, [id]: value },
+        };
+        return next;
+      });
+    },
+    [],
+  );
+
+  const setRiderFieldVisible = useCallback(
+    (slot: number, id: RiderFieldId, visible: boolean) => {
+      if (slot < 0 || slot >= MAX_SLOTS) return;
+      setSlotConfigs((prev) => {
+        const next = [...prev];
+        const cfg = next[slot];
+        const isHidden = cfg.hiddenRiderFields.includes(id);
+        if (visible && isHidden) {
+          next[slot] = {
+            ...cfg,
+            hiddenRiderFields: cfg.hiddenRiderFields.filter((f) => f !== id),
+          };
+          return next;
+        }
+        if (!visible && !isHidden) {
+          next[slot] = {
+            ...cfg,
+            hiddenRiderFields: [...cfg.hiddenRiderFields, id],
+          };
+          return next;
+        }
+        return prev;
+      });
+    },
+    [],
+  );
+
+  const reorderRiderFields = useCallback(
+    (slot: number, fromIndex: number, toIndex: number) => {
+      if (slot < 0 || slot >= MAX_SLOTS) return;
+      setSlotConfigs((prev) => {
+        const cfg = prev[slot];
+        if (
+          fromIndex === toIndex ||
+          fromIndex < 0 ||
+          toIndex < 0 ||
+          fromIndex >= cfg.riderFieldOrder.length ||
+          toIndex >= cfg.riderFieldOrder.length
+        ) {
+          return prev;
+        }
+        const next = [...cfg.riderFieldOrder];
+        const [moved] = next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, moved);
+        const nextSlotConfigs = [...prev];
+        nextSlotConfigs[slot] = { ...cfg, riderFieldOrder: next };
+        return nextSlotConfigs;
+      });
+    },
+    [],
+  );
+
+  const setRiderSectionEnabled = useCallback(
+    (slot: number, enabled: boolean) => {
+      if (slot < 0 || slot >= MAX_SLOTS) return;
+      setSlotConfigs((prev) => {
+        const next = [...prev];
+        const cfg = next[slot];
+        if (enabled && !cfg.riderSectionEnabled) {
+          const auto: RiderInfo = { ...cfg.rider };
+          if (!auto.bib) auto.bib = "0000";
+          if (!auto.name) {
+            const first = auth.athleteFirstName?.trim() ?? "";
+            const last = auth.athleteLastName?.trim() ?? "";
+            const full = [first, last].filter(Boolean).join(" ");
+            if (full) auto.name = full;
+          }
+          if (!auto.club) {
+            auto.club = athleteClubs[0]?.name ?? "undefined";
+          }
+          next[slot] = {
+            ...cfg,
+            riderSectionEnabled: true,
+            hiddenRiderFields: [],
+            rider: auto,
+          };
+          return next;
+        }
+        if (!enabled && cfg.riderSectionEnabled) {
+          next[slot] = { ...cfg, riderSectionEnabled: false };
+          return next;
+        }
+        return prev;
+      });
+    },
+    [auth.athleteFirstName, auth.athleteLastName, athleteClubs],
+  );
+
   const setBackgroundColor = useCallback((color: string) => {
     setConfigState((prev) => ({
       ...prev,
@@ -287,6 +425,10 @@ export function PosterProvider({ children }: { children: ReactNode }) {
     setLoadingBySlot(emptyLoadingRecord());
     setErrorsBySlot(emptyErrorsRecord());
     setConfigState(DEFAULT_CONFIG);
+    setAthleteClubs([]);
+    setAthleteClubsState("idle");
+    setAthleteClubsError(null);
+    clubsInitialFetchStarted.current = false;
   }, []);
 
   const loadActivity = useCallback(async (input: string, slot: number) => {
@@ -331,13 +473,29 @@ export function PosterProvider({ children }: { children: ReactNode }) {
           const res = await fetch("/api/strava/auth/status", {
             cache: "no-store",
           });
-          const data = (await res.json()) as { connected: boolean };
+          const data = (await res.json()) as {
+            connected: boolean;
+            athlete?: {
+              firstName?: string | null;
+              lastName?: string | null;
+            } | null;
+          };
           if (!cancelled) {
-            setAuth({ checked: true, connected: Boolean(data.connected) });
+            setAuth({
+              checked: true,
+              connected: Boolean(data.connected),
+              athleteFirstName: data.athlete?.firstName ?? null,
+              athleteLastName: data.athlete?.lastName ?? null,
+            });
           }
         } catch {
           if (!cancelled) {
-            setAuth({ checked: true, connected: false });
+            setAuth({
+              checked: true,
+              connected: false,
+              athleteFirstName: null,
+              athleteLastName: null,
+            });
           }
         }
       })();
@@ -357,10 +515,23 @@ export function PosterProvider({ children }: { children: ReactNode }) {
     catalogInitialFetchStarted.current = false;
   }, []);
 
+  const resetClubs = useCallback(() => {
+    setAthleteClubs([]);
+    setAthleteClubsState("idle");
+    setAthleteClubsError(null);
+    clubsInitialFetchStarted.current = false;
+  }, []);
+
   const resetAuth = useCallback(() => {
-    setAuth({ checked: true, connected: false });
+    setAuth({
+      checked: true,
+      connected: false,
+      athleteFirstName: null,
+      athleteLastName: null,
+    });
     resetCatalog();
-  }, [resetCatalog]);
+    resetClubs();
+  }, [resetCatalog, resetClubs]);
 
   useEffect(() => {
     const handler = () => resetAuth();
@@ -416,6 +587,53 @@ export function PosterProvider({ children }: { children: ReactNode }) {
     void fetchCatalog(1, "initial");
   }, [auth.connected, catalog.length, catalogState, fetchCatalog]);
 
+  const fetchAthleteClubs = useCallback(async () => {
+    setAthleteClubsState((prev) => (prev === "loading" ? prev : "loading"));
+    setAthleteClubsError(null);
+    try {
+      const res = await fetch("/api/strava/athlete/clubs", {
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          requiresAuth?: boolean;
+        };
+        if (data.requiresAuth) {
+          setAthleteClubsState("idle");
+          return;
+        }
+        throw new Error(data.error ?? `Error ${res.status}`);
+      }
+      const data = (await res.json()) as { clubs?: StravaClub[] };
+      setAthleteClubs(data.clubs ?? []);
+      setAthleteClubsState("loaded");
+    } catch (err) {
+      setAthleteClubsError((err as Error).message ?? "Error desconocido");
+      setAthleteClubsState("error");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!auth.connected) {
+      clubsInitialFetchStarted.current = false;
+      return;
+    }
+    if (clubsInitialFetchStarted.current) return;
+    if (
+      athleteClubsState === "loading" ||
+      athleteClubsState === "loaded"
+    ) {
+      return;
+    }
+    clubsInitialFetchStarted.current = true;
+    void fetchAthleteClubs();
+  }, [
+    auth.connected,
+    athleteClubsState,
+    fetchAthleteClubs,
+  ]);
+
   const value = useMemo<PosterState>(
     () => ({
       activities,
@@ -429,17 +647,26 @@ export function PosterProvider({ children }: { children: ReactNode }) {
       catalogHasMore,
       catalogState,
       catalogError,
+      athleteClubs,
+      athleteClubsState,
+      athleteClubsError,
       loadActivity,
       setActivityCount,
       setConfig,
       setSlotConfig,
       setMetricVisible,
       reorderMetrics,
+      setRiderSectionEnabled,
+      setRiderField,
+      setRiderFieldVisible,
+      reorderRiderFields,
+      fetchAthleteClubs,
       setBackgroundColor,
       setTextColor,
       resetTextColor,
       fetchCatalog,
       resetCatalog,
+      resetClubs,
       resetAuth,
       reset,
     }),
@@ -455,17 +682,26 @@ export function PosterProvider({ children }: { children: ReactNode }) {
       catalogHasMore,
       catalogState,
       catalogError,
+      athleteClubs,
+      athleteClubsState,
+      athleteClubsError,
       loadActivity,
       setActivityCount,
       setConfig,
       setSlotConfig,
       setMetricVisible,
       reorderMetrics,
+      setRiderSectionEnabled,
+      setRiderField,
+      setRiderFieldVisible,
+      reorderRiderFields,
+      fetchAthleteClubs,
       setBackgroundColor,
       setTextColor,
       resetTextColor,
       fetchCatalog,
       resetCatalog,
+      resetClubs,
       resetAuth,
       reset,
     ],
