@@ -156,6 +156,31 @@ export const DEFAULT_VISIBLE_METRICS: readonly MetricId[] = [
   "calories",
 ] as const;
 
+export type RiderFieldId = "name" | "club" | "bib";
+
+export type RiderFieldDefinition = {
+  id: RiderFieldId;
+  label: string;
+  placeholder: string;
+};
+
+export const RIDER_FIELDS: readonly RiderFieldDefinition[] = [
+  { id: "name", label: "Nombre", placeholder: "Nombre del ciclista" },
+  { id: "club", label: "Club", placeholder: "Club ciclista" },
+  { id: "bib", label: "Dorsal", placeholder: "Dorsal" },
+] as const;
+
+export type RiderInfo = {
+  name: string;
+  club: string;
+  bib: string;
+};
+
+export type StravaClub = {
+  id: number;
+  name: string;
+};
+
 export function isPaceActivity(type: StravaActivityType): boolean {
   return (
     type === "Run" ||
