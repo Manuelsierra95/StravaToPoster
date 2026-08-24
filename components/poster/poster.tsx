@@ -43,7 +43,6 @@ export function Poster() {
     "--poster-bg": theme.poster.background,
     "--poster-fg": effectiveTextColor,
     "--poster-fg-muted": hexToRgba(effectiveTextColor, 0.55),
-    "--poster-border": hexToRgba(effectiveTextColor, 0.18),
     "--poster-muted-bg": hexToRgba(effectiveTextColor, 0.04),
     "--poster-heading-font": FONT_BY_ID[config.headingFont].cssVar,
     "--poster-body-font": FONT_BY_ID[config.bodyFont].cssVar,
@@ -66,7 +65,7 @@ export function Poster() {
           data-poster-scope
           style={posterStyle}
           className={cn(
-            "relative flex w-full overflow-hidden border transition-all duration-300",
+            "relative flex w-full overflow-hidden p-6 transition-all duration-300",
             isLandscape
               ? "aspect-[4/3] max-h-[min(95vh,1100px)] max-w-[min(98vw,1500px)] min-w-[min(75vw,640px)] flex-col"
               : "aspect-[3/4] max-h-[min(98vh,1300px)] max-w-[min(98vw,900px)] min-w-[min(70vw,360px)] flex-row",
@@ -76,7 +75,7 @@ export function Poster() {
             <EmptyState loading={anyLoading} error={firstError} />
           ) : (
             <div
-              className="flex h-full w-full min-h-0 min-w-0"
+              className="flex h-full w-full min-h-0 min-w-0 gap-6"
               style={{ flexDirection: isLandscape ? "column" : "row" }}
             >
               {filled.map(({ activity, slot, slotConfig }) => (
@@ -97,10 +96,7 @@ export function Poster() {
               {Array.from({ length: count - visibleCount }).map((_, idx) => (
                 <div
                   key={`empty-${idx}`}
-                  className={cn(
-                    "flex min-w-0 min-h-0 overflow-hidden border-dashed border-[var(--poster-border)]",
-                    isLandscape ? "border-t" : "border-l",
-                  )}
+                  className="flex min-w-0 min-h-0 overflow-hidden"
                   style={{ flex: "1 1 0", flexBasis: 0 }}
                 >
                   <ActivityPanelEmpty orientation={isLandscape ? "landscape" : "portrait"} />

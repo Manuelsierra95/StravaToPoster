@@ -6,7 +6,9 @@ export type ThemeId =
   | "light"
   | "terrain"
   | "monochrome"
-  | "satellite";
+  | "satellite"
+  | "satellite-light"
+  | "satellite-dark";
 
 export type RoadCategory =
   | "motorway"
@@ -37,6 +39,100 @@ export const SATELLITE_STYLE: StyleSpecification = {
       id: "esri-satellite",
       type: "raster",
       source: "esri-satellite",
+    },
+  ],
+};
+
+export const SATELLITE_LIGHT_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    "esri-satellite": {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "Tiles © Esri",
+    },
+    "esri-hillshade": {
+      type: "raster",
+      tiles: [
+        "https://services.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "Tiles © Esri",
+    },
+  },
+  layers: [
+    {
+      id: "esri-satellite",
+      type: "raster",
+      source: "esri-satellite",
+      paint: {
+        "raster-saturation": -1,
+        "raster-brightness-min": 0.05,
+        "raster-brightness-max": 0.85,
+        "raster-contrast": 0.5,
+      },
+    },
+    {
+      id: "esri-hillshade",
+      type: "raster",
+      source: "esri-hillshade",
+      paint: {
+        "raster-opacity": 0.55,
+        "raster-saturation": -1,
+        "raster-contrast": 0.6,
+        "raster-brightness-min": 0.1,
+        "raster-brightness-max": 0.9,
+      },
+    },
+  ],
+};
+
+export const SATELLITE_DARK_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    "esri-satellite": {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "Tiles © Esri",
+    },
+    "esri-hillshade": {
+      type: "raster",
+      tiles: [
+        "https://services.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "Tiles © Esri",
+    },
+  },
+  layers: [
+    {
+      id: "esri-satellite",
+      type: "raster",
+      source: "esri-satellite",
+      paint: {
+        "raster-saturation": -1,
+        "raster-brightness-min": 0,
+        "raster-brightness-max": 0.2,
+        "raster-contrast": 0.9,
+      },
+    },
+    {
+      id: "esri-hillshade",
+      type: "raster",
+      source: "esri-hillshade",
+      paint: {
+        "raster-opacity": 0.7,
+        "raster-saturation": -1,
+        "raster-contrast": 0.6,
+        "raster-brightness-min": 0,
+        "raster-brightness-max": 0.35,
+      },
     },
   ],
 };
@@ -200,11 +296,27 @@ export const POSTER_THEMES: Record<ThemeId, PosterTheme> = {
   satellite: {
     id: "satellite",
     label: "Satélite",
-    poster: { background: "#0a0e14", text: "#f0f0f0" },
+    poster: { background: "#5C4033", text: "#f0f0f0" },
     map: {
-      // The satellite raster IS the map; no paint overrides. The bright
-      // orange route line stands out against the natural imagery.
       baseStyle: SATELLITE_STYLE,
+    },
+    route: { default: "#fc4c02" },
+  },
+  "satellite-light": {
+    id: "satellite-light",
+    label: "Satélite light",
+    poster: { background: "#ffffff", text: "#000000"  },
+    map: {
+      baseStyle: SATELLITE_LIGHT_STYLE,
+    },
+    route: { default: "#fc4c02" },
+  },
+  "satellite-dark": {
+    id: "satellite-dark",
+    label: "Satélite dark",
+    poster: { background: "#050608", text: "#f0f0f0" },
+    map: {
+      baseStyle: SATELLITE_DARK_STYLE,
     },
     route: { default: "#fc4c02" },
   },
@@ -217,6 +329,8 @@ export const THEME_ORDER: readonly ThemeId[] = [
   "terrain",
   "monochrome",
   "satellite",
+  "satellite-light",
+  "satellite-dark",
 ];
 
 export const DEFAULT_THEME_ID: ThemeId = "minimal";

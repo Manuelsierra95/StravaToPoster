@@ -70,7 +70,7 @@ export function MetricsGrid({
   });
 
   return (
-    <div className="grid grid-cols-2 gap-2 p-3 lg:grid-cols-3">
+    <div className="grid grid-cols-5 gap-x-1 gap-y-3 px-3 py-3">
       {visible.map((metric) => {
         const raw = getMetricValue(metric.id, activity);
         const format = metric.format === "speed" && usePace ? "pace" : metric.format;

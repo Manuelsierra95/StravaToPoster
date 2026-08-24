@@ -68,7 +68,7 @@ export function ActivityPanel({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <header className="shrink-0 border-b">
+      <header className="shrink-0">
         <Header activity={activity} slot={slot} slotConfig={slotConfig} />
       </header>
 
@@ -78,7 +78,7 @@ export function ActivityPanel({
 
       {hasElevation && activity.elevationPoints && (
         <div
-          className="shrink-0 border-t px-4 pt-3"
+          className="shrink-0 px-4 pt-3"
           style={{
             backgroundColor:
               "color-mix(in srgb, var(--poster-fg) 3%, transparent)",
@@ -94,7 +94,7 @@ export function ActivityPanel({
 
       <footer
         ref={metricsRef}
-        className="shrink-0 border-t"
+        className="shrink-0"
         style={{ minHeight: maxMetricsHeight || undefined }}
       >
         <MetricsGrid activity={activity} slotConfig={slotConfig} />
@@ -155,13 +155,13 @@ function LandscapeActivityPanel({
         className="flex min-w-0 min-h-0 flex-col"
         style={{ flexBasis: "60%", flexGrow: 0, flexShrink: 0 }}
       >
-        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden border-r">
+        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
           <RouteMap activity={activity} slot={slot} slotConfig={slotConfig} />
         </div>
 
         {hasElevation && activity.elevationPoints && (
           <div
-            className="min-h-0 overflow-hidden border-t border-r px-4 pt-3"
+            className="min-h-0 overflow-hidden px-4 pt-3"
             style={{
               height: `${chartHeight + 13}px`,
               backgroundColor:
@@ -177,7 +177,7 @@ function LandscapeActivityPanel({
         )}
       </div>
 
-      <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden border-l">
+      <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
         <div
           className="flex shrink-0 flex-col justify-start gap-1 overflow-hidden p-4"
           style={{ fontFamily: bodyFont }}
@@ -202,7 +202,7 @@ function LandscapeActivityPanel({
 
         {showAthleteSection && (
           <div
-            className="flex shrink-0 flex-col justify-start gap-1.5 overflow-hidden border-t p-4"
+            className="flex shrink-0 flex-col justify-start gap-1.5 overflow-hidden p-4"
             style={{ fontFamily: bodyFont }}
           >
             {athleteFullName && (
@@ -224,7 +224,7 @@ function LandscapeActivityPanel({
 
         <div
           ref={metricsRef}
-          className="flex shrink-0 overflow-hidden border-t"
+          className="flex shrink-0 overflow-hidden"
           style={{
             minHeight: maxMetricsHeight || undefined,
           }}

@@ -33,7 +33,12 @@ function ThemeSwatch({
 }) {
   const theme = getTheme(id);
   const light = isLight(theme.poster.background);
-  const isSatellite = theme.id === "satellite";
+  const satelliteVariant =
+    theme.id === "satellite" ||
+    theme.id === "satellite-light" ||
+    theme.id === "satellite-dark"
+      ? theme.id
+      : null;
   return (
     <button
       type="button"
@@ -48,8 +53,8 @@ function ThemeSwatch({
     >
       {/* Mini map preview */}
       <div className="relative flex-1 overflow-hidden">
-        {isSatellite ? (
-          <SatellitePreview />
+        {satelliteVariant ? (
+          <SatellitePreview variant={satelliteVariant} />
         ) : (
           <>
             <div
@@ -92,14 +97,6 @@ function ThemeSwatch({
         style={{ color: theme.poster.text }}
       >
         <span>{theme.label}</span>
-        <span
-          className={cn(
-            "rounded-sm px-1 text-[0.55rem] tracking-wider uppercase",
-          )}
-          style={{ backgroundColor: hexToRgba(theme.poster.text, 0.1) }}
-        >
-          {light ? "claro" : "oscuro"}
-        </span>
       </div>
       {selected && (
         <span
@@ -118,15 +115,22 @@ function ThemeSwatch({
  * imagery: muted green/brown patches suggesting terrain and a bright route
  * line on top.
  */
-function SatellitePreview() {
+function SatellitePreview({
+  variant,
+}: {
+  variant: "satellite" | "satellite-light" | "satellite-dark";
+}) {
+  const gradient =
+    variant === "satellite-dark"
+      ? "linear-gradient(135deg, #050505 0%, #0c0c0c 30%, #1a1a1a 50%, #0c0c0c 70%, #030303 100%)"
+      : variant === "satellite-light"
+        ? "linear-gradient(135deg, #1c1c1c 0%, #2a2a2a 30%, #5a5a5a 50%, #2a2a2a 70%, #111111 100%)"
+        : "linear-gradient(135deg, #2d4a2b 0%, #3d5a3a 30%, #6b7d4f 50%, #5a6b3e 70%, #4a5a32 100%)";
   return (
     <>
       <div
         className="absolute inset-x-1 top-1 bottom-1 rounded-sm"
-        style={{
-          background:
-            "linear-gradient(135deg, #2d4a2b 0%, #3d5a3a 30%, #6b7d4f 50%, #5a6b3e 70%, #4a5a32 100%)",
-        }}
+        style={{ background: gradient }}
       />
       <svg
         className="absolute inset-0 h-full w-full"
