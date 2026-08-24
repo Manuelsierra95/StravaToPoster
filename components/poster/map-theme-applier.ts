@@ -196,25 +196,47 @@ export function applyTheme(map: MapLibreMap, theme: PosterTheme): void {
 
 export type ThemeCategoryKey = "background" | "vegetation" | "water" | "roads" | "boundaries" | "labels";
 
-export function validateThemeLayers(map: MapLibreMap): void {
+/**
+ * Sanity check for development: warns when a category the theme is trying to
+ * override has no matching layer in the loaded style. Only categories the
+ * theme actually paints are checked, so themes that omit paint properties
+ * (e.g. `satellite`, which uses its own raster basemap) stay silent.
+ */
+export function validateThemeLayers(
+  map: MapLibreMap,
+  theme: PosterTheme,
+): void {
   if (process.env.NODE_ENV === "production") return;
 
-  const checks: Array<[ThemeCategoryKey, string[]]> = [
-    ["background", [...LAYER_CATEGORIES.background]],
-    ["vegetation", [...LAYER_CATEGORIES.vegetation]],
-    [
+  const m = theme.map;
+  const checks: Array<[ThemeCategoryKey, string[]]> = [];
+
+  if (m.background !== undefined) {
+    checks.push(["background", [...LAYER_CATEGORIES.background]]);
+  }
+  if (m.vegetation !== undefined) {
+    checks.push(["vegetation", [...LAYER_CATEGORIES.vegetation]]);
+  }
+  if (m.water !== undefined) {
+    checks.push([
       "water",
       [...LAYER_CATEGORIES.water.fill, ...LAYER_CATEGORIES.water.line],
-    ],
-    ["boundaries", [...LAYER_CATEGORIES.boundaries]],
-    ["labels", [...LAYER_CATEGORIES.labels]],
-  ];
-  checks.push([
-    "roads",
-    (Object.keys(LAYER_CATEGORIES.roads) as RoadCategory[]).flatMap(
-      (k) => [...LAYER_CATEGORIES.roads[k]],
-    ),
-  ]);
+    ]);
+  }
+  if (m.roads) {
+    checks.push([
+      "roads",
+      (Object.keys(LAYER_CATEGORIES.roads) as RoadCategory[]).flatMap(
+        (k) => [...LAYER_CATEGORIES.roads[k]],
+      ),
+    ]);
+  }
+  if (m.boundaries !== undefined) {
+    checks.push(["boundaries", [...LAYER_CATEGORIES.boundaries]]);
+  }
+  if (m.labels) {
+    checks.push(["labels", [...LAYER_CATEGORIES.labels]]);
+  }
 
   for (const [key, ids] of checks) {
     const found = ids.some((id) => !!map.getLayer(id));

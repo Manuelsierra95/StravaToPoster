@@ -32,8 +32,9 @@ function ThemeController({ theme }: { theme: ThemeId }) {
 
   useEffect(() => {
     if (!map || !isLoaded) return;
-    applyTheme(map, getTheme(theme));
-    validateThemeLayers(map);
+    const themeObj = getTheme(theme);
+    applyTheme(map, themeObj);
+    validateThemeLayers(map, themeObj);
     map.triggerRepaint();
   }, [map, isLoaded, theme]);
 
