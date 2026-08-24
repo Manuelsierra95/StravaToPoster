@@ -4,6 +4,8 @@ import { usePoster } from "@/components/poster-provider";
 
 const ATTRIBUTION_LINES: ReadonlyArray<readonly [themeId: string, lines: string[]]> = [
   ["satellite", ["Tiles © Esri"]],
+  ["satellite-light", ["Tiles © Esri"]],
+  ["satellite-dark", ["Tiles © Esri"]],
 ];
 
 const DEFAULT_ATTRIBUTION = ["© CARTO", "© OpenStreetMap contributors"];
@@ -20,7 +22,7 @@ export function MapAttribution() {
   const lines = match?.[1] ?? DEFAULT_ATTRIBUTION;
 
   return (
-    <footer className="text-muted-foreground border-border border-t px-4 py-2.5 text-center text-[0.65rem]">
+    <footer className="text-muted-foreground px-4 py-2.5 text-center text-[0.65rem]">
       {lines.map((line, idx) => (
         <span key={line}>
           {line}
