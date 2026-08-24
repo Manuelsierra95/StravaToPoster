@@ -199,14 +199,23 @@ export type ThemeCategoryKey = "background" | "vegetation" | "water" | "roads" |
 /**
  * Sanity check for development: warns when a category the theme is trying to
  * override has no matching layer in the loaded style. Only categories the
- * theme actually paints are checked, so themes that omit paint properties
- * (e.g. `satellite`, which uses its own raster basemap) stay silent.
+ * theme actually paints are checked.
+ *
+ * Bails out entirely when the loaded basemap isn't the categorized positron
+ * style. Two reasons:
+ *  1. Themes like `satellite` use their own raster basemap with no
+ *     categorized layers; warning for them is noise.
+ *  2. During a theme swap, React's `isLoaded` flag flips true from the
+ *     previous style's `load` event, but the map's actual layers still
+ *     belong to that previous style. Validating against them produces
+ *     spurious warnings even when the new style is on its way.
  */
 export function validateThemeLayers(
   map: MapLibreMap,
   theme: PosterTheme,
 ): void {
   if (process.env.NODE_ENV === "production") return;
+  if (!map.getLayer("background")) return;
 
   const m = theme.map;
   const checks: Array<[ThemeCategoryKey, string[]]> = [];
