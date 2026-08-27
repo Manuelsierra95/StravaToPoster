@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Separator } from "@/components/ui/separator";
 import { DragAndDropProvider } from "@/components/ui/drag-and-drop";
+import { DownloadPosterButton } from "@/components/poster/download-poster-button";
 import { usePoster } from "@/components/poster-provider";
 import { StravaAuth } from "./strava-auth";
 import { MultiActivityPicker } from "./multi-activity-picker";
@@ -52,87 +53,93 @@ export function EditorPanel() {
   const [riderSlot, setRiderSlot] = useActiveSlot();
 
   return (
-    <aside className="flex h-full flex-col gap-5 overflow-y-auto border-border border-t bg-background p-5 lg:border-t-0 lg:border-l">
-      <div>
-        <h2 className="font-heading text-base font-bold">Configurar poster</h2>
-        <p className="text-xs text-muted-foreground">
-          Personaliza el recorrido, mapa y métricas.
-        </p>
+    <aside className="flex h-full flex-col border-border border-t bg-background lg:border-t-0 lg:border-l">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-5">
+        <div>
+          <h2 className="font-heading text-base font-bold">Configurar poster</h2>
+          <p className="text-xs text-muted-foreground">
+            Personaliza el recorrido, mapa y métricas.
+          </p>
+        </div>
+
+        <Section title="Cuenta Strava">
+          <StravaAuth />
+        </Section>
+
+        <Separator />
+
+        <Section title="Actividades">
+          <MultiActivityPicker />
+        </Section>
+
+        <Separator />
+
+        <Section title="Atleta">
+          <SlotSelector value={riderSlot} onChange={setRiderSlot} />
+          <DragAndDropProvider>
+            <AthleteInfo slot={riderSlot} />
+          </DragAndDropProvider>
+        </Section>
+
+        <Separator />
+
+        <Section title="Formato">
+          <PosterOrientation />
+        </Section>
+
+        <Separator />
+
+        <Section title="Marco">
+          <PosterFrame />
+        </Section>
+
+        <Separator />
+
+        <Section title="Estilo">
+          <PosterThemeSelector />
+        </Section>
+
+        <Separator />
+
+        <Section title="Tipografía">
+          <FontPicker />
+        </Section>
+
+        <Separator />
+
+        <Section title="Recorrido">
+          <SlotSelector value={routeSlot} onChange={setRouteSlot} />
+          <RouteColorPicker slot={routeSlot} />
+        </Section>
+
+        <Separator />
+
+        <Section title="Gráfico">
+          <SlotSelector value={chartSlot} onChange={setChartSlot} />
+          <ElevationChartControl slot={chartSlot} />
+        </Section>
+
+        <Separator />
+
+        <Section title="Mapa">
+          <SlotSelector value={mapSlot} onChange={setMapSlot} />
+          <MapTiltControl slot={mapSlot} />
+          <MapLabelsControl slot={mapSlot} />
+        </Section>
+
+        <Separator />
+
+        <Section title="Métricas">
+          <SlotSelector value={metricSlot} onChange={setMetricSlot} />
+          <DragAndDropProvider>
+            <MetricToggles slot={metricSlot} />
+          </DragAndDropProvider>
+        </Section>
       </div>
 
-      <Section title="Cuenta Strava">
-        <StravaAuth />
-      </Section>
-
-      <Separator />
-
-      <Section title="Actividades">
-        <MultiActivityPicker />
-      </Section>
-
-      <Separator />
-
-      <Section title="Atleta">
-        <SlotSelector value={riderSlot} onChange={setRiderSlot} />
-        <DragAndDropProvider>
-          <AthleteInfo slot={riderSlot} />
-        </DragAndDropProvider>
-      </Section>
-
-      <Separator />
-
-      <Section title="Formato">
-        <PosterOrientation />
-      </Section>
-
-      <Separator />
-
-      <Section title="Marco">
-        <PosterFrame />
-      </Section>
-
-      <Separator />
-
-      <Section title="Estilo">
-        <PosterThemeSelector />
-      </Section>
-
-      <Separator />
-
-      <Section title="Tipografía">
-        <FontPicker />
-      </Section>
-
-      <Separator />
-
-      <Section title="Recorrido">
-        <SlotSelector value={routeSlot} onChange={setRouteSlot} />
-        <RouteColorPicker slot={routeSlot} />
-      </Section>
-
-      <Separator />
-
-      <Section title="Gráfico">
-        <SlotSelector value={chartSlot} onChange={setChartSlot} />
-        <ElevationChartControl slot={chartSlot} />
-      </Section>
-
-      <Separator />
-
-      <Section title="Mapa">
-        <SlotSelector value={mapSlot} onChange={setMapSlot} />
-        <MapTiltControl slot={mapSlot} />
-        <MapLabelsControl slot={mapSlot} />
-      </Section>
-
-      <Separator />
-
-      <Section title="Métricas">
-        <SlotSelector value={metricSlot} onChange={setMetricSlot} />
-        <DragAndDropProvider>
-          <MetricToggles slot={metricSlot} />
-        </DragAndDropProvider>
-      </Section>
+      <div className="shrink-0 border-border border-t bg-background p-4">
+        <DownloadPosterButton />
+      </div>
     </aside>
   );
 }

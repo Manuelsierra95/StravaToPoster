@@ -26,18 +26,20 @@ function EditorSkeleton() {
 export default function Page() {
   return (
     <PosterProvider>
-      <div className="flex h-svh flex-col">
-        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1fr_360px]">
-          <main className="min-h-0 overflow-hidden">
+      <div className="flex h-svh flex-col lg:flex-row">
+        <div className="flex min-h-0 flex-[3] flex-col overflow-hidden lg:flex-1">
+          <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <Poster />
           </main>
+          <Suspense fallback={null}>
+            <MapAttribution />
+          </Suspense>
+        </div>
+        <div className="flex min-h-0 flex-[2] flex-col overflow-hidden border-border border-t lg:flex-none lg:w-[360px] lg:border-t-0 lg:border-l">
           <Suspense fallback={<EditorSkeleton />}>
             <EditorPanel />
           </Suspense>
         </div>
-        <Suspense fallback={null}>
-          <MapAttribution />
-        </Suspense>
       </div>
     </PosterProvider>
   );

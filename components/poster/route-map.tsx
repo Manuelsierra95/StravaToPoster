@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { Map, MapRoute, useMap, type MapRef } from "@/components/ui/map";
 
 import {
@@ -45,15 +45,41 @@ export function RouteMap({
   activity,
   slot,
   slotConfig,
+  wrapperRef,
 }: {
   activity: ScrapedActivity;
   slot: number;
   slotConfig: SlotConfig;
+  wrapperRef?: RefObject<HTMLDivElement | null>;
 }) {
   const mapRef = useRef<MapRef>(null);
   const baseZoomRef = useRef<number>(FALLBACK_ZOOM);
-  const { config } = usePoster();
+  const { config, registerMap } = usePoster();
   const routeColor = useEffectiveRouteColor(slot);
+
+  // Register the MapLibre instance with the provider as soon as it's exposed
+  // via the forwarded ref. The Map component populates this in its commit
+  // phase, so a short retry loop covers the gap between mount and ref fill.
+  useEffect(() => {
+    let cancelled = false;
+    let unregister: (() => void) | null = null;
+    let frame = 0;
+    const tryRegister = () => {
+      if (cancelled) return;
+      const map = mapRef.current;
+      if (!map) {
+        frame = requestAnimationFrame(tryRegister);
+        return;
+      }
+      unregister = registerMap(slot, map);
+    };
+    tryRegister();
+    return () => {
+      cancelled = true;
+      if (frame) cancelAnimationFrame(frame);
+      unregister?.();
+    };
+  }, [slot, registerMap]);
 
   const coordinates = useMemo(
     () => (activity ? decodePolyline(activity.summaryPolyline) : []),
@@ -86,6 +112,22 @@ export function RouteMap({
     );
     baseZoomRef.current = map.getZoom();
   }, [activity, coordinates]);
+
+  // MapLibre's internal ResizeObserver only watches the map container itself.
+  // When the parent flex layout changes (e.g. activity count 3 → 1) the
+  // container's box can briefly lag behind. Re-fire a resize whenever the
+  // wrapper element changes so the canvas catches up.
+  useEffect(() => {
+    const wrapper = wrapperRef?.current;
+    if (!wrapper) return;
+    const observer = new ResizeObserver(() => {
+      const map = mapRef.current;
+      if (!map) return;
+      map.resize();
+    });
+    observer.observe(wrapper);
+    return () => observer.disconnect();
+  }, [wrapperRef]);
 
   useEffect(() => {
     const map = mapRef.current;

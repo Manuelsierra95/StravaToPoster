@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { ActivityPanel, ActivityPanelEmpty } from "./activity-panel";
 
 export function Poster() {
-  const { activities, slotConfigs, loadingBySlot, errorsBySlot, config } = usePoster();
+  const { activities, slotConfigs, loadingBySlot, errorsBySlot, config, posterFrameRef } = usePoster();
   const effectiveTextColor = useEffectiveTextColor();
   const theme = getTheme(config.theme);
   const isLandscape = config.orientation === "landscape";
@@ -52,10 +52,11 @@ export function Poster() {
   const columnsOrRows = visibleCount > 0 ? visibleCount : 1;
 
   return (
-    <div className="flex h-full w-full items-center justify-center overflow-auto bg-muted/30 p-4 lg:p-8">
+    <div className="flex h-full w-full items-center justify-center overflow-hidden bg-muted/30 p-4 lg:p-8">
       <div
+        ref={posterFrameRef}
         data-poster-frame
-        className="relative p-7 shadow-2xl transition-all duration-300"
+        className="relative p-7 shadow-2xl transition-[box-shadow,background-color,background] duration-300"
         style={{
           ...frameOuterStyle,
           boxShadow: `0 30px 60px -15px rgba(0,0,0,0.5), inset 0 0 0 1px ${frame.edge}`,
@@ -65,14 +66,14 @@ export function Poster() {
           data-poster-scope
           style={posterStyle}
           className={cn(
-            "relative flex w-full overflow-hidden p-6 transition-all duration-300",
+            "relative flex w-full overflow-hidden p-6 transition-colors duration-300",
             isLandscape
               ? "aspect-[4/3] max-h-[min(95vh,1100px)] max-w-[min(98vw,1500px)] min-w-[min(75vw,640px)] flex-col"
               : "aspect-[3/4] max-h-[min(98vh,1300px)] max-w-[min(98vw,900px)] min-w-[min(70vw,360px)] flex-row",
           )}
         >
           {visibleCount === 0 ? (
-            <EmptyState loading={anyLoading} error={firstError} />
+            <EmptyState loading={anyLoading} error={firstError} orientation={isLandscape ? "landscape" : "portrait"} />
           ) : (
             <div
               className="flex h-full w-full min-h-0 min-w-0 gap-6"
@@ -110,9 +111,14 @@ export function Poster() {
   );
 }
 
-function EmptyState({ loading, error }: { loading: boolean; error: string | null }) {
+function EmptyState({ loading, error, orientation }: { loading: boolean; error: string | null; orientation: "landscape" | "portrait" }) {
+  const sizeClasses =
+    orientation === "landscape"
+      ? "aspect-[4/3] min-h-[min(95vh,1100px)] max-h-[min(95vh,1100px)] max-w-[min(98vw,1500px)] min-w-[min(75vw,640px)]"
+      : "aspect-[3/4] min-h-[min(98vh,1300px)] max-h-[min(98vh,1300px)] max-w-[min(98vw,900px)] min-w-[min(70vw,360px)]";
+
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+    <div className={cn("flex flex-1 flex-col items-center justify-start gap-3 px-8 pt-[18%] text-center", sizeClasses)}>
       <div className="flex size-12 items-center justify-center rounded-full bg-[var(--poster-muted-bg)]">
         <Mountain className="text-[var(--poster-fg-muted)] size-5" />
       </div>
