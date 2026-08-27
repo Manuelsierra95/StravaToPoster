@@ -298,6 +298,12 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       style: initialStyle,
       renderWorldCopies: false,
       attributionControl: false,
+      // Required so `html-to-image` (or any canvas snapshot) can read the
+      // WebGL framebuffer after rendering. Without it the map shows up as a
+      // blank/black canvas in the exported PNG. MapLibre exposes WebGL
+      // context attributes via this nested object rather than as top-level
+      // MapOptions keys.
+      canvasContextAttributes: { preserveDrawingBuffer: true },
       ...props,
       ...viewport,
     });
