@@ -37,6 +37,7 @@ export function ActivityPanel({
   const chartHeight = chartHeightMode === "compact" ? 72 : 100;
   const maxMetricsHeight = useMaxHeight(METRICS_NS);
   const metricsRef = useRef<HTMLDivElement>(null);
+  const mapWrapperRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const el = metricsRef.current;
@@ -60,6 +61,7 @@ export function ActivityPanel({
         slotConfig={slotConfig}
         chartHeight={chartHeight}
         metricsRef={metricsRef}
+        mapWrapperRef={mapWrapperRef}
         hasElevation={hasElevation}
         maxMetricsHeight={maxMetricsHeight}
       />
@@ -72,8 +74,13 @@ export function ActivityPanel({
         <Header activity={activity} slot={slot} slotConfig={slotConfig} />
       </header>
 
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        <RouteMap activity={activity} slot={slot} slotConfig={slotConfig} />
+      <div ref={mapWrapperRef} className="relative min-h-0 flex-1 overflow-hidden">
+        <RouteMap
+          activity={activity}
+          slot={slot}
+          slotConfig={slotConfig}
+          wrapperRef={mapWrapperRef}
+        />
       </div>
 
       {hasElevation && activity.elevationPoints && (
@@ -93,11 +100,12 @@ export function ActivityPanel({
       )}
 
       <footer
-        ref={metricsRef}
         className="shrink-0"
         style={{ minHeight: maxMetricsHeight || undefined }}
       >
-        <MetricsGrid activity={activity} slotConfig={slotConfig} />
+        <div ref={metricsRef} className="w-full">
+          <MetricsGrid activity={activity} slotConfig={slotConfig} />
+        </div>
       </footer>
     </div>
   );
@@ -109,6 +117,7 @@ function LandscapeActivityPanel({
   slotConfig,
   chartHeight,
   metricsRef,
+  mapWrapperRef,
   hasElevation,
   maxMetricsHeight,
 }: {
@@ -117,6 +126,7 @@ function LandscapeActivityPanel({
   slotConfig: SlotConfig;
   chartHeight: number;
   metricsRef: RefObject<HTMLDivElement | null>;
+  mapWrapperRef: RefObject<HTMLDivElement | null>;
   hasElevation: boolean;
   maxMetricsHeight: number;
 }) {
@@ -155,8 +165,16 @@ function LandscapeActivityPanel({
         className="flex min-w-0 min-h-0 flex-col"
         style={{ flexBasis: "60%", flexGrow: 0, flexShrink: 0 }}
       >
-        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
-          <RouteMap activity={activity} slot={slot} slotConfig={slotConfig} />
+        <div
+          ref={mapWrapperRef}
+          className="relative min-h-0 min-w-0 flex-1 overflow-hidden"
+        >
+          <RouteMap
+            activity={activity}
+            slot={slot}
+            slotConfig={slotConfig}
+            wrapperRef={mapWrapperRef}
+          />
         </div>
 
         {hasElevation && activity.elevationPoints && (
@@ -223,13 +241,14 @@ function LandscapeActivityPanel({
         )}
 
         <div
-          ref={metricsRef}
           className="flex shrink-0 overflow-hidden"
           style={{
             minHeight: maxMetricsHeight || undefined,
           }}
         >
-          <MetricsGrid activity={activity} slotConfig={slotConfig} />
+          <div ref={metricsRef} className="w-full">
+            <MetricsGrid activity={activity} slotConfig={slotConfig} />
+          </div>
         </div>
 
         <div className="flex-1" aria-hidden />

@@ -16,21 +16,34 @@ export function MapAttribution() {
     .slice(0, config.activityCount)
     .some((activity) => activity !== null);
 
-  if (!hasActivity) return null;
-
   const match = ATTRIBUTION_LINES.find(([themeId]) => themeId === config.theme);
   const lines = match?.[1] ?? DEFAULT_ATTRIBUTION;
 
   return (
-    <footer className="text-muted-foreground px-4 py-2.5 text-center text-[0.65rem]">
-      {lines.map((line, idx) => (
-        <span key={line}>
-          {line}
-          {idx < lines.length - 1 && (
-            <span className="mx-1.5 opacity-60">·</span>
-          )}
+    <footer className="text-muted-foreground min-h-[2.25rem] px-4 py-2.5 text-center text-[0.65rem]">
+      {hasActivity ? (
+        lines.map((line, idx) => (
+          <span key={line}>
+            {line}
+            {idx < lines.length - 1 && (
+              <span className="mx-1.5 opacity-60">·</span>
+            )}
+          </span>
+        ))
+      ) : (
+        // Reserve the same vertical footprint when no activity is loaded so
+        // the poster above doesn't jump when the attribution appears.
+        <span className="opacity-0" aria-hidden>
+          {lines.map((line, idx) => (
+            <span key={line}>
+              {line}
+              {idx < lines.length - 1 && (
+                <span className="mx-1.5 opacity-60">·</span>
+              )}
+            </span>
+          ))}
         </span>
-      ))}
+      )}
     </footer>
   );
 }

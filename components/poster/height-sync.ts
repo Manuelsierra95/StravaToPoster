@@ -40,9 +40,13 @@ export function reportHeight(
     heights.set(id, height);
     changed = true;
   }
-  if (!changed) return;
-  recompute(namespace);
-  listeners.get(namespace)?.forEach((cb) => cb());
+  // Always recompute on removal. When a sibling slot is unmounted its reported
+  // height can equal the new max, so `changed` stays false even though the
+  // surviving slot's minHeight constraint should re-evaluate.
+  if (height === null || changed) {
+    recompute(namespace);
+    listeners.get(namespace)?.forEach((cb) => cb());
+  }
 }
 
 export function useMaxHeight(namespace: string): number {
