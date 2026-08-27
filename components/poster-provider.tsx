@@ -13,8 +13,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type MutableRefObject,
   type ReactNode,
 } from "react";
+import type { Map as MapLibreMap } from "maplibre-gl";
 
 import {
   METRICS,
@@ -152,6 +154,19 @@ export type PosterState = {
   athleteClubs: StravaClub[];
   athleteClubsState: ClubsState;
   athleteClubsError: string | null;
+  /**
+   * Ref pointing at the poster frame DOM node (the `[data-poster-frame]`
+   * element). Populated by the `Poster` component so sibling trees (e.g. the
+   * download button) can serialize it without prop-drilling.
+   */
+  posterFrameRef: MutableRefObject<HTMLDivElement | null>;
+  /**
+   * Snapshot of the currently-mounted MapLibre map instances, keyed by slot.
+   * Populated by `<RouteMap>` as each `<Map>` instance becomes available and
+   * drained when it unmounts.
+   */
+  mapsBySlot: Map<number, MapLibreMap>;
+  registerMap: (slot: number, map: MapLibreMap) => () => void;
   loadActivity: (input: string, slot: number) => Promise<void>;
   setActivityCount: (count: ActivityCount) => void;
   setConfig: (patch: Partial<PosterConfig>) => void;
@@ -245,6 +260,20 @@ export function PosterProvider({ children }: { children: ReactNode }) {
   );
   const catalogInitialFetchStarted = useRef(false);
   const clubsInitialFetchStarted = useRef(false);
+  const posterFrameRef = useRef<HTMLDivElement | null>(null);
+  const mapsBySlotRef = useRef<Map<number, MapLibreMap>>(new Map());
+  const [mapsVersion, setMapsVersion] = useState(0);
+
+  const registerMap = useCallback((slot: number, map: MapLibreMap) => {
+    mapsBySlotRef.current.set(slot, map);
+    setMapsVersion((v) => v + 1);
+    return () => {
+      if (mapsBySlotRef.current.get(slot) === map) {
+        mapsBySlotRef.current.delete(slot);
+        setMapsVersion((v) => v + 1);
+      }
+    };
+  }, []);
 
   const setConfig = useCallback((patch: Partial<PosterConfig>) => {
     setConfigState((prev) => ({ ...prev, ...patch }));
@@ -683,6 +712,11 @@ export function PosterProvider({ children }: { children: ReactNode }) {
       athleteClubs,
       athleteClubsState,
       athleteClubsError,
+      posterFrameRef,
+      // Re-create the snapshot whenever maps register/unregister so consumers
+      // re-render with the current set of maps.
+      mapsBySlot: new Map(mapsBySlotRef.current),
+      registerMap,
       loadActivity,
       setActivityCount,
       setConfig,
@@ -705,6 +739,13 @@ export function PosterProvider({ children }: { children: ReactNode }) {
       resetAuth,
       reset,
     }),
+    /* eslint-disable react-hooks/exhaustive-deps --
+       `mapsVersion` is an indirect invalidation signal: it changes whenever a
+       MapLibre instance registers or unregisters with the provider, which is
+       how consumers (e.g. the download button) learn about new map instances
+       without observing a ref. The exhaustive-deps rule can't see this
+       pattern because the snapshot value (`new Map(mapsBySlotRef.current)`)
+       reads from a ref. */
     [
       activities,
       slotConfigs,
@@ -720,6 +761,8 @@ export function PosterProvider({ children }: { children: ReactNode }) {
       athleteClubs,
       athleteClubsState,
       athleteClubsError,
+      registerMap,
+      mapsVersion,
       loadActivity,
       setActivityCount,
       setConfig,
