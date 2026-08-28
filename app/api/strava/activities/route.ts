@@ -1,3 +1,5 @@
+import { unstable_rethrow } from "next/navigation";
+
 import {
   fetchStravaActivities,
   StravaApiError,
@@ -19,6 +21,7 @@ export async function GET(request: Request) {
     const result = await fetchStravaActivities(page, perPage);
     return Response.json({ ...result, page, perPage });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof StravaAuthError) {
       return Response.json(
         { error: error.message, requiresAuth: true },

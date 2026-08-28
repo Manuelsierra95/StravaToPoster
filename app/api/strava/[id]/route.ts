@@ -1,3 +1,5 @@
+import { unstable_rethrow } from "next/navigation";
+
 import { fetchStravaActivity, StravaApiError, StravaAuthError } from "@/lib/strava/oauth";
 import { parseActivityId } from "@/lib/strava/parse-activity-url";
 
@@ -11,6 +13,7 @@ export async function GET(
   try {
     activityId = await parseActivityId(rawId);
   } catch (error) {
+    unstable_rethrow(error);
     return Response.json(
       { error: (error as Error).message, requiresAuth: false },
       { status: 400 },
@@ -21,6 +24,7 @@ export async function GET(
     const activity = await fetchStravaActivity(activityId);
     return Response.json({ activity });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof StravaAuthError) {
       return Response.json(
         { error: error.message, requiresAuth: true },

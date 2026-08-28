@@ -1,3 +1,5 @@
+import { unstable_rethrow } from "next/navigation";
+
 import {
   getCachedAthleteClubs,
   getValidAccessToken,
@@ -11,6 +13,7 @@ export async function GET() {
     const clubs = await getCachedAthleteClubs(accessToken);
     return Response.json({ clubs });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof StravaAuthError) {
       return Response.json(
         { error: error.message, requiresAuth: true },

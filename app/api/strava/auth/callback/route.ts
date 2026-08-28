@@ -1,3 +1,5 @@
+import { unstable_rethrow } from "next/navigation";
+
 import { exchangeCodeForTokens, storeTokens, StravaAuthError } from "@/lib/strava/oauth";
 
 export async function GET(request: Request) {
@@ -22,6 +24,7 @@ export async function GET(request: Request) {
     await storeTokens(tokens);
     return Response.redirect(new URL("/?strava_connected=1", request.url));
   } catch (err) {
+    unstable_rethrow(err);
     const message =
       err instanceof StravaAuthError ? err.message : "Error desconocido";
     return Response.redirect(
